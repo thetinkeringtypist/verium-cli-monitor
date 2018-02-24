@@ -10,6 +10,7 @@ CLI monitor.
 
 ### How To Install & Use
 This monitor is for use with Fireworm71's `cpuminer` (veriumMiner).
+It currently supports API version 1.1
 
 There are two parts to this setup:
  * The Monitor (`monitor.py`): the display through which you will see the status of your monitors, and
