@@ -4,8 +4,10 @@
 #
 #! CLI Monitor to display cpuminer information for each worker on the LAN
 #
-#! NOTE: Requires a list of hostnames on the LAN in /home/<username>/.chosts
-#        Also requires miner-apid.py to run on each worker.
+#! NOTE: Requires a list of hostnames/IPs on the LAN in
+#        /home/<username>/.chosts
+#
+#!       Also requires miner-apid.py to running on each worker.
 #
 #! I have this script running on my LAN controller so that finding each machine
 #  on the LAN is not a problem
@@ -49,6 +51,8 @@ def init_display():
 	stdscr.nodelay(True)
 	curses.curs_set(0)
 	stdscr.clear()
+
+
 	for host in hosts:
 		string = "{0:<15}   ----.--- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C".format(host)
 		statstrs.append(string)
@@ -95,8 +99,8 @@ def kill_program():
 	stdscr.keypad(False)
 	curses.echo()
 	curses.endwin()
-	#! Kill ZMQ stuff
 
+	#! Kill ZMQ stuff
 	for zmqsocket in zmqsockets:
 		zmqsocket.close()
 	context.term()
@@ -151,6 +155,28 @@ def parse_zmqmsg(host, msg):
 	return
 
 
+#! Calc totals and averages
+def get_totals_avgs():
+	#! Calculate Totals
+	total_hashrate = sum(hashrates)
+	total_share_percent = sum(share_percents)
+	total_solved_blocks = sum(solved_blocks_list)
+	total_cpus = sum(cpus_list)
+
+	#! Calculate Averages
+	avg_hashrate = total_hashrate / len(hashrates)
+	avg_share_percent = total_share_percent / len(share_percents)
+	avg_solved_blocks = total_solved_blocks / len(solved_blocks_list)
+	avg_difficulty = sum(difficulties) / len(difficulties)
+	avg_cpus = total_cpus / len(cpus_list)
+	avg_cpu_temp = sum(cpu_temps) / len(cpu_temps)
+
+	avg_str = "Average        {0:>11.3f} H/m    {1:>5.2f}%   {2:>6}   {3:<10f} │ {4:>4.2f}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
+	total_str = "Total          {0:>11.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
+
+	return (total_str, avg_str)
+	
+
 #! Main function
 def main(stdscr):
 	kill_threads.clear()
@@ -163,6 +189,7 @@ def main(stdscr):
 
 	#! Initialize
 	init_display()
+	(term_height,term_width) = stdscr.getmaxyx()
 	init_lists()
 	init_zmqsockets()
 	signal.signal(signal.SIGINT, signal_handler)
@@ -175,7 +202,7 @@ def main(stdscr):
 		t.start()
 
 	stdscr.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
-	stdscr.addstr(1,0,      "  │    Hostname     │   Hashrate   │ Share % │ Blocks │ Difficulty │ CPUs │   Temp  │")
+	stdscr.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Share % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
 	stdscr.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────────┴────────┴────────────┼──────┴─────────┤")
 	while True:
 		i = 3
@@ -183,28 +210,16 @@ def main(stdscr):
 			stdscr.addstr(i,0,"│ │ {0} │".format(string))
 			stdscr.clrtoeol()
 			i += 1
+		for b in range(i,term_height):
+			stdscr.addstr(b,0,          "│ │                                                                │                │")
 
-		#! Calculate Totals
-		total_hashrate = sum(hashrates)
-		total_share_percent = sum(share_percents)
-		total_solved_blocks = sum(solved_blocks_list)
-		total_cpus = sum(cpus_list)
 
-		#! Calculate Averages
-		avg_hashrate = total_hashrate / len(hashrates)
-		avg_share_percent = total_share_percent / len(share_percents)
-		avg_solved_blocks = total_solved_blocks / len(solved_blocks_list)
-		avg_difficulty = sum(difficulties) / len(difficulties)
-		avg_cpus = total_cpus / len(cpus_list)
-		avg_cpu_temp = sum(cpu_temps) / len(cpu_temps)
+		(total_str,avg_str) = get_totals_avgs()
 
-		avg_string = "Average {0:>11.3f} H/m    {1:>5.2f}%   {2:>6}   {3:<10f} │ {4:>4}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
-
-		total_string = "Total   {0:>11.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
-		stdscr.addstr(i,0,   "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
-		stdscr.addstr(i+1,0, "│ │        {0} │".format(avg_string))
-		stdscr.addstr(i+2,0, "│ │        {0} │".format(total_string))
-		stdscr.addstr(i+3,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
+		stdscr.addstr(term_height-4,0, "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
+		stdscr.addstr(term_height-3,0, "│ │ {0} │".format(avg_str))
+		stdscr.addstr(term_height-2,0, "│ │ {0} │".format(total_str))
+		stdscr.addstr(term_height-1,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
 
 		c = stdscr.getch()  #! Calls stdscr.refresh()
 		if c == ord('q'):
