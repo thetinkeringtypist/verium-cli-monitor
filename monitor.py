@@ -21,6 +21,7 @@ from curses import wrapper
 from pathlib import Path
 
 
+
 #! Thread variables
 threads = []
 kill_threads = threading.Event()
@@ -29,9 +30,7 @@ kill_threads = threading.Event()
 context = zmq.Context()
 zmqsockets = []
 
-
 #! Display varaibles
-input_thread = threading.Thread()
 stdscr = curses.initscr()
 hosts = []
 statstrs = []
@@ -51,7 +50,6 @@ def init_display():
 	stdscr.nodelay(True)
 	curses.curs_set(0)
 	stdscr.clear()
-
 
 	for host in hosts:
 		string = "{0:<15}   ----.--- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C".format(host)
@@ -82,23 +80,24 @@ def init_zmqsockets():
 	return
 
 
-#! Create signal handler
+#! Interrupt signal handler
 def signal_handler(signal, frame):
 	kill_program()
 
 
 #! Kill program
 def kill_program():
-	#! Kill Threads
-	kill_threads.set()
-	for t in threads:
-		t.join()
-	
 	#! Kill curses stuff
 	curses.nocbreak()
 	stdscr.keypad(False)
 	curses.echo()
 	curses.endwin()
+	
+	#! Kill Threads
+	kill_threads.set()
+	print("Killing threads...")
+	for t in threads:
+		t.join()
 
 	#! Kill ZMQ stuff
 	for zmqsocket in zmqsockets:
@@ -106,15 +105,15 @@ def kill_program():
 	context.term()
 
 	sys.exit()
+	return
 
 
 #! Process messages from a zmqsocket
 def process_zmqmsg(stop_event, zmqsocket, host):
 	socket = zmqsocket
-	timeout = 0
 	
 	while not stop_event.is_set():
-		time.sleep(0.5)
+		time.sleep(1)
 
 		socket.send_string("summary")
 		msg = socket.recv_string()
@@ -177,6 +176,63 @@ def get_totals_avgs():
 	return (total_str, avg_str)
 	
 
+#! The display and user input loop
+def run_display_user_input():
+	#! Screen info
+	(term_height,term_width) = stdscr.getmaxyx()
+	hl_host = 2
+	hosts_len = len(hosts)
+
+	#! Print header information
+	stdscr.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
+	stdscr.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Share % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
+	stdscr.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────────┴────────┴────────────┼──────┴─────────┤")
+	while True:
+		i = 3
+		for string in statstrs:
+			#! Print host strings
+			if i == (hl_host + 1): #! Start of display offset
+				stdscr.addstr(i,0,"│>│")
+				stdscr.addstr(" {0} ".format(string), curses.A_REVERSE)
+				stdscr.addstr("│")
+			else:
+				stdscr.addstr(i,0,"│ │ {0} │".format(string))
+
+			stdscr.clrtoeol()
+			i += 1
+
+		#! Print empty lines to fill the terminal
+		for b in range(i,term_height):
+			stdscr.addstr(b,0,          "│ │                                                                │                │")
+
+		#! Calculate totals and averages
+		(total_str,avg_str) = get_totals_avgs()
+		stdscr.addstr(term_height-4,0, "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
+		stdscr.addstr(term_height-3,0, "│ │ {0} │".format(avg_str))
+		stdscr.addstr(term_height-2,0, "│ │ {0} │".format(total_str))
+		stdscr.addstr(term_height-1,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
+
+		#! Get user input
+		c = stdscr.getch()  #! Calls stdscr.refresh()
+		if c == curses.KEY_DOWN:
+			hl_host += 1 if hl_host <= hosts_len else 0
+		elif c == curses.KEY_UP:
+			hl_host -= 1 if hl_host > 2 else 0
+		elif c == ord('q'):
+			break
+
+		#! Negligable refresh lag while
+		#  keeping CPU usage down
+		#  (for arrowing up and down)
+		#! I want to use a keyboard event
+		#  listener, but I can't find an
+		#  implementation that works over
+		#  ssh
+		time.sleep(0.03)
+
+	return
+
+	
 #! Main function
 def main(stdscr):
 	kill_threads.clear()
@@ -189,7 +245,6 @@ def main(stdscr):
 
 	#! Initialize
 	init_display()
-	(term_height,term_width) = stdscr.getmaxyx()
 	init_lists()
 	init_zmqsockets()
 	signal.signal(signal.SIGINT, signal_handler)
@@ -201,30 +256,10 @@ def main(stdscr):
 		threads.append(t)
 		t.start()
 
-	stdscr.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
-	stdscr.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Share % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
-	stdscr.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────────┴────────┴────────────┼──────┴─────────┤")
-	while True:
-		i = 3
-		for string in statstrs:
-			stdscr.addstr(i,0,"│ │ {0} │".format(string))
-			stdscr.clrtoeol()
-			i += 1
-		for b in range(i,term_height):
-			stdscr.addstr(b,0,          "│ │                                                                │                │")
+	#! Run display and user input loop
+	run_display_user_input()
 
-
-		(total_str,avg_str) = get_totals_avgs()
-
-		stdscr.addstr(term_height-4,0, "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
-		stdscr.addstr(term_height-3,0, "│ │ {0} │".format(avg_str))
-		stdscr.addstr(term_height-2,0, "│ │ {0} │".format(total_str))
-		stdscr.addstr(term_height-1,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
-
-		c = stdscr.getch()  #! Calls stdscr.refresh()
-		if c == ord('q'):
-			break
-		time.sleep(0.5)
+	#! Kill the program
 	kill_program()
 	return
 
