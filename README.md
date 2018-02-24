@@ -32,8 +32,8 @@ sudo -H pip3 install pyzmq
 
 2) Copy `miner-apid.py` to each machine running a miner on your LAN.
 `miner-apid.py` needs to start after your miner instances start. Since most
-people run their miners via /etc/rc.local, add this line to the end of your
-/etc/rc.local file:
+people run their miners via `/etc/rc.local`, add this line to the end of your
+`/etc/rc.local` file:
 ```bash
 /path/to/script/miner-apid.py >> /path/to/logfile.log 2>&1 &
 ```
