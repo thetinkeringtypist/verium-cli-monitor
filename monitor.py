@@ -50,7 +50,7 @@ def init_display():
 	curses.curs_set(0)
 	stdscr.clear()
 	for host in hosts:
-		string = "{0:<8}   ----.--- H/m   ---.--%   ------   -.-------- │ ----  ---.-°C".format(host)
+		string = "{0:<15}   ----.--- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C".format(host)
 		statstrs.append(string)
 
 	return
@@ -114,16 +114,16 @@ def process_zmqmsg(stop_event, zmqsocket, host):
 
 		socket.send_string("summary")
 		msg = socket.recv_string()
-		parse_zmqmsg(msg)
+		parse_zmqmsg(host,msg)
 	return
 
 
 #! Parse message received from server
-def parse_zmqmsg(msg):
+def parse_zmqmsg(host, msg):
 	items = msg.split(",")
 
 	#! Get the index of the host
-	host = items[0].split('=')[1]
+#	host = items[0].split('=')[1]
 	index = hosts.index(host)
 
 	#! Get values
@@ -146,7 +146,7 @@ def parse_zmqmsg(msg):
 	cpu_temps[index] = cpu_temp
 
 	#! Build the display string entry
-	string = "{0:<8}   {1:>8.3f} H/m   {2:>6.2f}%   {3:>6}   {4:<10} │ {5:>4}  {6:>5.1f}°C".format(host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
+	string = "{0:<15}   {1:>8.3f} H/m   {2:>6.2f}%   {3:>6}   {4:<10} │ {5:>4}   {6:>5.1f}°C".format(host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
 	statstrs[index] = string
 	return
 
@@ -174,9 +174,9 @@ def main(stdscr):
 		threads.append(t)
 		t.start()
 
-	stdscr.addstr(0,0,      "  ┌──────────┬──────────────┬─────────┬────────┬────────────┬───────────────┐")
-	stdscr.addstr(1,0,      "  │ Hostname │   Hashrate   │ Share % │ Blocks │ Difficulty │ CPUs    Temp  │")
-	stdscr.addstr(2,0,      "┌─┼──────────┴──────────────┴─────────┴────────┴────────────┼───────────────┤")
+	stdscr.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
+	stdscr.addstr(1,0,      "  │    Hostname     │   Hashrate   │ Share % │ Blocks │ Difficulty │ CPUs │   Temp  │")
+	stdscr.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────────┴────────┴────────────┼──────┴─────────┤")
 	while True:
 		i = 3
 		for string in statstrs:
@@ -198,13 +198,13 @@ def main(stdscr):
 		avg_cpus = total_cpus / len(cpus_list)
 		avg_cpu_temp = sum(cpu_temps) / len(cpu_temps)
 
-		avg_string = "Average {0:>11.3f} H/m    {1:>5.2f}%   {2:>6}   {3:<10f} │ {4:>4}  {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
+		avg_string = "Average {0:>11.3f} H/m    {1:>5.2f}%   {2:>6}   {3:<10f} │ {4:>4}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
 
-		total_string = "Total   {0:>11.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}  ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
-		stdscr.addstr(i,0,   "├─┼─────────────────────────────────────────────────────────┼───────────────┤")
-		stdscr.addstr(i+1,0, "│ │ {0} │".format(avg_string))
-		stdscr.addstr(i+2,0, "│ │ {0} │".format(total_string))
-		stdscr.addstr(i+3,0, "└─┴─────────────────────────────────────────────────────────┴───────────────┘")
+		total_string = "Total   {0:>11.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
+		stdscr.addstr(i,0,   "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
+		stdscr.addstr(i+1,0, "│ │        {0} │".format(avg_string))
+		stdscr.addstr(i+2,0, "│ │        {0} │".format(total_string))
+		stdscr.addstr(i+3,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
 
 		c = stdscr.getch()  #! Calls stdscr.refresh()
 		if c == ord('q'):
