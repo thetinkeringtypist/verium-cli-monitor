@@ -5,7 +5,7 @@ real-time is another. This can be done through web-based monitors or via this
 CLI monitor.
 
 
-![alt text](https://github.com/bezeredi/verium-mining-files/blob/master/vrm-mining-rig-monitor.png "CLI Monitor Preview")
+![alt text](https://github.com/bezeredi/verium-mining-files/blob/master/cli-monitor.png "CLI Monitor Preview")
 
 
 ### How To Install & Use
