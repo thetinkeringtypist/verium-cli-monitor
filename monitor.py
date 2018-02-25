@@ -76,6 +76,9 @@ def init_zmqsockets():
 	for host in hosts:
 		s = context.socket(zmq.REQ)
 		s.connect("tcp://%s:5048" % host)
+		s.setsockopt(zmq.SNDTIMEO, 5000)
+		s.setsockopt(zmq.RCVTIMEO, 5000)
+		s.setsockopt(zmq.LINGER, 1000)
 		zmqsockets.append(s)
 	return
 
@@ -113,9 +116,16 @@ def process_zmqmsg(zmqsocket, host):
 	while not kill_threads.is_set():
 		time.sleep(1)
 
-		zmqsocket.send_string("summary")
-		msg = zmqsocket.recv_string()
-		parse_zmqmsg(host,msg)
+		try:
+			zmqsocket.send_string("summary")
+			msg = zmqsocket.recv_string()
+			parse_zmqmsg(host,msg)
+		except zmq.error.ZMQError as e:
+			pass
+#			TODO: Figure out how to show host both
+#			      go offline and come online
+#			host_offline_str(host)
+		
 	return
 
 
@@ -148,6 +158,14 @@ def parse_zmqmsg(host, msg):
 
 	#! Build the display string entry
 	string = "{0:<15}   {1:>8.3f} H/m   {2:>6.2f}%   {3:>6}   {4:<10} │ {5:>4}   {6:>5.1f}°C".format(host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
+	statstrs[index] = string
+	return
+
+
+#! Sets the host to offline
+def host_offline_str(host):
+	index = hosts.index(host)
+	string = "{0:<15}   ----.--- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C".format(host)
 	statstrs[index] = string
 	return
 
