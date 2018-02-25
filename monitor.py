@@ -109,14 +109,12 @@ def kill_program():
 
 
 #! Process messages from a zmqsocket
-def process_zmqmsg(stop_event, zmqsocket, host):
-	socket = zmqsocket
-	
-	while not stop_event.is_set():
+def process_zmqmsg(zmqsocket, host):
+	while not kill_threads.is_set():
 		time.sleep(1)
 
-		socket.send_string("summary")
-		msg = socket.recv_string()
+		zmqsocket.send_string("summary")
+		msg = zmqsocket.recv_string()
 		parse_zmqmsg(host,msg)
 	return
 
@@ -252,7 +250,7 @@ def main(stdscr):
 	#! Create threads and start
 	for zmqsocket in zmqsockets:
 		host = hosts[zmqsockets.index(zmqsocket)]
-		t = threading.Thread(target=process_zmqmsg, args=(kill_threads, zmqsocket, host,))
+		t = threading.Thread(target=process_zmqmsg, args=(zmqsocket, host,))
 		threads.append(t)
 		t.start()
 
