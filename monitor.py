@@ -21,7 +21,6 @@ from curses import wrapper
 from pathlib import Path
 
 
-
 #! Thread variables
 threads = []
 kill_threads = threading.Event()
@@ -34,6 +33,7 @@ zmqsockets = []
 stdscr = curses.initscr()
 hosts = []
 statstrs = []
+statinfo_list = []
 cpus_list = []
 hashrates = []
 share_percents = []
@@ -47,13 +47,15 @@ def init_display():
 	curses.noecho()
 	curses.cbreak()
 	stdscr.keypad(True)
-	stdscr.nodelay(True)
+	stdscr.nodelay(True) #! Nonblocking user input
 	curses.curs_set(0)
 	stdscr.clear()
 
 	for host in hosts:
-		string = "{0:<15}   ----.--- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C".format(host)
-		statstrs.append(string)
+		#! Only (offline, host) since no value will be accessed 
+		#  other than these if the host is offline
+		statinfo_list.append((False, host))
+		statstrs.append("")
 
 	return
 
@@ -121,11 +123,18 @@ def process_zmqmsg(zmqsocket, host):
 			msg = zmqsocket.recv_string()
 			parse_zmqmsg(host,msg)
 		except zmq.error.ZMQError as e:
-			pass
+			set_host_offline(host)
 #			TODO: Figure out how to show host both
 #			      go offline and come online
-#			host_offline_str(host)
+#			set_host_offline(host)
 		
+	return
+
+
+#! Change display to reflect that the host is offline
+def set_host_offline(host):
+	index = hosts.index(host)
+	statinfo_list[index] = (False, host)
 	return
 
 
@@ -157,16 +166,8 @@ def parse_zmqmsg(host, msg):
 	cpu_temps[index] = cpu_temp
 
 	#! Build the display string entry
-	string = "{0:<15}   {1:>8.3f} H/m   {2:>6.2f}%   {3:>6}   {4:<10} │ {5:>4}   {6:>5.1f}°C".format(host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
-	statstrs[index] = string
-	return
-
-
-#! Sets the host to offline
-def host_offline_str(host):
-	index = hosts.index(host)
-	string = "{0:<15}   ----.--- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C".format(host)
-	statstrs[index] = string
+	#! (online, host, hpm, percent, blocks, difficulty, cpus, temp)
+	statinfo_list[index] = (True, host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
 	return
 
 
@@ -194,8 +195,6 @@ def get_totals_avgs():
 
 #! The display and user input loop
 def run_display_user_input():
-	#! Screen info
-	(term_height,term_width) = stdscr.getmaxyx()
 	hl_host = 2
 	hosts_len = len(hosts)
 
@@ -203,31 +202,8 @@ def run_display_user_input():
 	stdscr.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
 	stdscr.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Share % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
 	stdscr.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────────┴────────┴────────────┼──────┴─────────┤")
+
 	while True:
-		i = 3
-		for string in statstrs:
-			#! Print host strings
-			if i == (hl_host + 1): #! Start of display offset
-				stdscr.addstr(i,0,"│>│")
-				stdscr.addstr(" {0} ".format(string), curses.A_REVERSE)
-				stdscr.addstr("│")
-			else:
-				stdscr.addstr(i,0,"│ │ {0} │".format(string))
-
-			stdscr.clrtoeol()
-			i += 1
-
-		#! Print empty lines to fill the terminal
-		for b in range(i,term_height):
-			stdscr.addstr(b,0,          "│ │                                                                │                │")
-
-		#! Calculate totals and averages
-		(total_str,avg_str) = get_totals_avgs()
-		stdscr.addstr(term_height-4,0, "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
-		stdscr.addstr(term_height-3,0, "│ │ {0} │".format(avg_str))
-		stdscr.addstr(term_height-2,0, "│ │ {0} │".format(total_str))
-		stdscr.addstr(term_height-1,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
-
 		#! Get user input
 		c = stdscr.getch()  #! Calls stdscr.refresh()
 		if c == curses.KEY_DOWN:
@@ -236,6 +212,10 @@ def run_display_user_input():
 			hl_host -= 1 if hl_host > 2 else 0
 		elif c == ord('q'):
 			break
+		else:
+			pass
+
+		write_to_scr(hl_host)
 
 		#! Negligable refresh lag while
 		#  keeping CPU usage down
@@ -248,7 +228,105 @@ def run_display_user_input():
 
 	return
 
+
+#! Write strings to the screen
+def write_to_scr(hl_host):
+	#! Screen info
+	(term_height,term_width) = stdscr.getmaxyx()
 	
+	i = 3
+	for statinfo in statinfo_list:
+		#! Highlight host
+		hl = (True if i == (hl_host + 1) else False)
+
+		apply_formatting(i, statinfo, hl)
+		i += 1
+		
+		
+#	for string in statstrs:
+#		#! Print host strings
+#		if i == (hl_host + 1): #! Start of display offset
+#			stdscr.addstr(i,0,"│>│")
+#			stdscr.addstr(" {0} ".format(string), curses.A_REVERSE)
+#			stdscr.addstr("│")
+#		else:
+#			stdscr.addstr(i,0,"│ │ {0} │".format(string))
+#
+#		stdscr.clrtoeol()
+#		i += 1
+
+	#! Print empty lines to fill the terminal
+	for b in range(i,term_height):
+		stdscr.addstr(b,0,          "│ │                                                                │                │")
+
+	#! Calculate totals and averages
+	(total_str,avg_str) = get_totals_avgs()
+	stdscr.addstr(term_height-4,0, "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
+	stdscr.addstr(term_height-3,0, "│ │ {0} │".format(avg_str))
+	stdscr.addstr(term_height-2,0, "│ │ {0} │".format(total_str))
+	stdscr.addstr(term_height-1,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
+
+	return
+
+
+#! Applies formatting and coloring for written lines
+def apply_formatting(line, statinfo, hl,):
+	hl_prefix = "│>│"
+	prefix =   "│ │"
+
+	#! Host online, highlighted
+	if statinfo[0] == True and hl == True:
+		#! Three spaces between each. Space, bar, space between diff and cpus
+		stdscr.addstr(line, 0, hl_prefix)
+		stdscr.addstr(" {0:<15}".format(statinfo[1]), curses.A_REVERSE)      #! Hostname/IP
+		stdscr.addstr("   ", curses.A_REVERSE)
+		stdscr.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) #! HPM
+		stdscr.addstr("   ", curses.A_REVERSE)
+		stdscr.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   #! Share %
+		stdscr.addstr("   ", curses.A_REVERSE)
+		stdscr.addstr("{0:>6}".format(statinfo[4]), curses.A_REVERSE)        #! Solved Blocks
+		stdscr.addstr("   ", curses.A_REVERSE)
+		stdscr.addstr("{0:<10} ".format(statinfo[5]), curses.A_REVERSE)       #! Difficulty
+		stdscr.addstr("│", curses.A_REVERSE)
+		stdscr.addstr(" {0:>4}".format(statinfo[6]), curses.A_REVERSE)        #! CPUs
+		stdscr.addstr("   ", curses.A_REVERSE)
+		stdscr.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)   #! CPU Temp
+
+	#! Host online, not highlighted
+	elif statinfo[0] == True and hl == False:
+		stdscr.addstr(line, 0, prefix)
+		stdscr.addstr(" {0:<15}".format(statinfo[1]))      #! Hostname/IP
+		stdscr.addstr("   ")
+		stdscr.addstr("{0:>8.3f} H/m".format(statinfo[2])) #! HPM
+		stdscr.addstr("   ")
+		stdscr.addstr("{0:>6.2f}%".format(statinfo[3]))   #! Share %
+		stdscr.addstr("   ")
+		stdscr.addstr("{0:>6}".format(statinfo[4]))        #! Solved Blocks
+		stdscr.addstr("   ")
+		stdscr.addstr("{0:<10} ".format(statinfo[5]))       #! Difficulty
+		stdscr.addstr("│")
+		stdscr.addstr(" {0:>4}".format(statinfo[6]))        #! CPUs
+		stdscr.addstr("   ")
+		stdscr.addstr("{0:>5.1f}°C ".format(statinfo[7]))  #! CPU Temp
+		
+	#! Host offline, highlighted
+	elif statinfo[0] == False and hl == True:
+		stdscr.addstr(line, 0, hl_prefix)
+		stdscr.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
+
+	#! host offline, non-highlighted
+	else:
+		stdscr.addstr(line, 0, prefix)
+		stdscr.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C ".format(statinfo[1]))
+		
+	
+	#! End of Line
+	stdscr.addstr("│")
+	stdscr.clrtoeol()
+
+	return
+
+
 #! Main function
 def main(stdscr):
 	kill_threads.clear()
