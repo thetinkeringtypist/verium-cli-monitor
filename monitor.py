@@ -126,7 +126,6 @@ def process_zmqmsg(zmqsocket, host):
 			set_host_offline(host)
 #			TODO: Figure out how to show host both
 #			      go offline and come online
-#			set_host_offline(host)
 		
 	return
 
@@ -277,36 +276,22 @@ def apply_formatting(line, statinfo, hl,):
 	#! Host online, highlighted
 	if statinfo[0] == True and hl == True:
 		#! Three spaces between each. Space, bar, space between diff and cpus
-		stdscr.addstr(line, 0, hl_prefix)
-		stdscr.addstr(" {0:<15}".format(statinfo[1]), curses.A_REVERSE)      #! Hostname/IP
-		stdscr.addstr("   ", curses.A_REVERSE)
+		stdscr.addstr(line, 0, prefix)
+		stdscr.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
 		stdscr.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) #! HPM
 		stdscr.addstr("   ", curses.A_REVERSE)
 		stdscr.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   #! Share %
-		stdscr.addstr("   ", curses.A_REVERSE)
-		stdscr.addstr("{0:>6}".format(statinfo[4]), curses.A_REVERSE)        #! Solved Blocks
-		stdscr.addstr("   ", curses.A_REVERSE)
-		stdscr.addstr("{0:<10} ".format(statinfo[5]), curses.A_REVERSE)       #! Difficulty
-		stdscr.addstr("│", curses.A_REVERSE)
-		stdscr.addstr(" {0:>4}".format(statinfo[6]), curses.A_REVERSE)        #! CPUs
-		stdscr.addstr("   ", curses.A_REVERSE)
-		stdscr.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)   #! CPU Temp
+		stdscr.addstr("   {0:>6}   {1:<10} │ {2:>4}   ".format(statinfo[4], statinfo[5], statinfo[6]), curses.A_REVERSE)
+		stdscr.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)  #! CPU Temp
 
 	#! Host online, not highlighted
 	elif statinfo[0] == True and hl == False:
 		stdscr.addstr(line, 0, prefix)
-		stdscr.addstr(" {0:<15}".format(statinfo[1]))      #! Hostname/IP
-		stdscr.addstr("   ")
+		stdscr.addstr(" {0:<15}   ".format(statinfo[1]))
 		stdscr.addstr("{0:>8.3f} H/m".format(statinfo[2])) #! HPM
 		stdscr.addstr("   ")
 		stdscr.addstr("{0:>6.2f}%".format(statinfo[3]))   #! Share %
-		stdscr.addstr("   ")
-		stdscr.addstr("{0:>6}".format(statinfo[4]))        #! Solved Blocks
-		stdscr.addstr("   ")
-		stdscr.addstr("{0:<10} ".format(statinfo[5]))       #! Difficulty
-		stdscr.addstr("│")
-		stdscr.addstr(" {0:>4}".format(statinfo[6]))        #! CPUs
-		stdscr.addstr("   ")
+		stdscr.addstr("   {0:>6}   {1:<10} │ {2:>4}   ".format(statinfo[4], statinfo[5], statinfo[6]))
 		stdscr.addstr("{0:>5.1f}°C ".format(statinfo[7]))  #! CPU Temp
 		
 	#! Host offline, highlighted
