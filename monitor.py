@@ -67,7 +67,6 @@ def init_display():
 
 #! Initialize zmqsockets
 def init_zmqsockets():
-	context = zmq.Context()
 	for host in hosts:
 		s = context.socket(zmq.REQ)
 		s.connect("tcp://%s:5048" % host)
@@ -101,9 +100,11 @@ def kill_program():
 
 
 #! Process messages from a zmqsocket
-def process_zmqmsg(zmqsocket, host):
+def process_zmqmsg(host):
 	while not kill_threads.is_set():
 		time.sleep(1)
+		index = hosts.index(host)
+		zmqsocket = zmqsockets[index]
 
 		try:
 			zmqsocket.send_string("summary")
@@ -111,8 +112,7 @@ def process_zmqmsg(zmqsocket, host):
 			parse_zmqmsg(host,msg)
 		except zmq.error.ZMQError as e:
 			set_host_offline(host)
-#			TODO: Figure out how to show host both
-#			      go offline and come online
+			zmq_reconnect(zmqsocket, host)
 		
 	return
 
@@ -124,12 +124,30 @@ def set_host_offline(host):
 	return
 
 
+#! Reconnect the zmqsocket
+def zmq_reconnect(zmqsocket, host):
+	#! Close existing socket
+	index = hosts.index(host)
+	zmqsocket.close()
+	zmqsockets[index] = None
+	
+	#! Create and connect the new socket
+	new_zmqsocket = context.socket(zmq.REQ)
+	new_zmqsocket.connect("tcp://%s:5048" % host)
+	new_zmqsocket.setsockopt(zmq.SNDTIMEO, 5000)  #! Arbitrary number of seconds
+	new_zmqsocket.setsockopt(zmq.RCVTIMEO, 5000)  #! Arbitrary number of seconds
+	new_zmqsocket.setsockopt(zmq.LINGER, 1000)    #! Arbitrary number of seconds
+	zmqsockets[index] = new_zmqsocket
+
+	return
+
+
 #! Parse message received from server
 def parse_zmqmsg(host, msg):
 	items = msg.split(",")
 
 	#! Get the index of the host
-#	host = items[0].split('=')[1]
+#	host = items[1].split('=')[1]
 	index = hosts.index(host)
 
 	#! Get values
@@ -340,7 +358,7 @@ def main(stdscr):
 	#! Create threads and start
 	for zmqsocket in zmqsockets:
 		host = hosts[zmqsockets.index(zmqsocket)]
-		t = threading.Thread(target=process_zmqmsg, args=(zmqsocket, host,))
+		t = threading.Thread(target=process_zmqmsg, args=(host,))
 		threads.append(t)
 		t.start()
 
