@@ -163,8 +163,8 @@ def get_totals_avgs():
 	avg_cpus            = total_cpus / length
 	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,i in online_hosts) / length
 
-	avg_str = "Average        {0:>11.3f} H/m    {1:>5.2f}%   {2:>6}   {3:<10f} │ {4:>4.2f}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
-	total_str = "Total          {0:>11.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
+	avg_str = "Average {0:>18.3f} H/m   {1:>6.2f}%   {2:>6}   {3:<10f} │ {4:>4.2f}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
+	total_str = "Total   {0:>18.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
 
 	return (total_str, avg_str)
 	
@@ -239,7 +239,7 @@ def apply_formatting(line, statinfo, hl,):
 	#! Host online, highlighted
 	if statinfo[0] == True and hl == True:
 		#! Three spaces between each. Space, bar, space between diff and cpus
-		stdscr.addstr(line, 0, prefix)
+		stdscr.addstr(line, 0, hl_prefix)
 		stdscr.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
 		stdscr.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) #! HPM
 		stdscr.addstr("   ", curses.A_REVERSE)
