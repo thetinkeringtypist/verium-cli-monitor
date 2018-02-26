@@ -13,11 +13,9 @@
 #  on the LAN is not a problem
 import zmq
 import time
-import sys
 import signal
 import threading
 import curses
-from curses import wrapper
 from pathlib import Path
 
 
@@ -57,6 +55,7 @@ def init_display():
 	#! Footer window (index 2)
 	windows.append(curses.newwin(4, term_width, term_height - 4, 0))
 
+
 	curses.noecho()
 	curses.cbreak()
 	windows[1].keypad(True)
@@ -86,15 +85,9 @@ def signal_handler(signal, frame):
 
 #! Kill program
 def kill_program():
-	#! Kill curses stuff
-	curses.nocbreak()
-	stdscr.keypad(False)
-	curses.echo()
-	curses.endwin()
-	
 	#! Kill Threads
 	kill_threads.set()
-	print("Waiting for threads...")
+	print("Waiting for background threads...")
 	for t in threads:
 		t.join()
 
@@ -103,7 +96,7 @@ def kill_program():
 		zmqsocket.close()
 	context.term()
 
-	sys.exit()
+	exit()
 	return
 
 
@@ -190,11 +183,15 @@ def run_display_user_input():
 	hosts_win = windows[1]
 	footer_win = windows[2]
 	(term_height, term_width) = stdscr.getmaxyx()
+	(header_height, _) = header_win.getmaxyx()
 	(hosts_height, _) = hosts_win.getmaxyx()
 	(footer_height, _) = footer_win.getmaxyx()
 
+	hosts_scroll_max = term_height - header_height - footer_height - 1
+	footer_start = term_height - footer_height - 1
 	hosts_len = len(hosts)
 	hl_host = 0
+	start_y = 0
 
 	#! Print header information
 	header_win.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
@@ -206,20 +203,33 @@ def run_display_user_input():
 	header_win.refresh()
 
 	while True:
-		(start_y,start_x, stop_y,stop_x) = write_to_scr(hl_host)
+		#! Write hosts to screen and frame the scroll window
+		write_to_scr(hl_host)
 
 		#! Get user input
 		c = hosts_win.getch()  #! Calls stdscr.refresh()
 		if c == curses.KEY_DOWN:
-			hl_host += 1 if hl_host < (hosts_len -1) else 0
+			if hl_host < (hosts_height - 1) and hl_host < (hosts_len - 1):
+				hl_host += 1
+			if start_y <= (hl_host - hosts_scroll_max - 1):
+				start_y += 1 
 		elif c == curses.KEY_UP:
-			hl_host -= 1 if hl_host > 0 else 0
+			if hl_host > 0:
+				hl_host -= 1 
+			if hl_host < start_y and start_y > 0:
+				start_y -= 1
+		elif c == curses.KEY_HOME:
+			hl_host = 0
+			start_y = 0
+		elif c == curses.KEY_END:
+			hl_host = hosts_height - 1
+			start_y = hl_host - hosts_scroll_max
 		elif c == ord('q'):
 			break
 		else:
-			pass
+			pass #! Leave everything as is
 
-		hosts_win.refresh( 0,0, 3,0, (term_height - footer_height - 1),term_width)
+		hosts_win.refresh( start_y,0, 3,0, footer_start,term_width)
 		footer_win.refresh()
 
 		#! Negligable refresh lag while
@@ -263,11 +273,11 @@ def write_to_scr(hl_host):
 	footer_win.addstr(3,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
 	footer_win.clrtoeol()
 
-	return (0,0,0,0)
+	return
 
 
 #! Applies formatting and coloring for written lines
-def apply_formatting(line, statinfo, hl,):
+def apply_formatting(line, statinfo, hl):
 	hosts_win = windows[1]
 
 	hl_prefix = "│>│"
@@ -338,10 +348,10 @@ def main(stdscr):
 	run_display_user_input()
 
 	#! Kill the program
-	kill_program()
 	return
 
 
 #! Run the program
 if __name__ == "__main__":
-	wrapper(main)
+	curses.wrapper(main)
+	kill_program()
