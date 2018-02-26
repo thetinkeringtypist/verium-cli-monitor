@@ -32,14 +32,7 @@ zmqsockets = []
 #! Display varaibles
 stdscr = curses.initscr()
 hosts = []
-statstrs = []
 statinfo_list = []
-cpus_list = []
-hashrates = []
-share_percents = []
-solved_blocks_list = []
-difficulties = []
-cpu_temps = []
 
 
 #! Initialize display variables
@@ -55,20 +48,7 @@ def init_display():
 		#! Only (offline, host) since no value will be accessed 
 		#  other than these if the host is offline
 		statinfo_list.append((False, host))
-		statstrs.append("")
 
-	return
-
-
-#! Initialize value lists
-def init_lists():
-	for host in hosts:
-		cpus_list.append(0)
-		hashrates.append(0.0)
-		share_percents.append(0.0)
-		solved_blocks_list.append(0)
-		difficulties.append(0)
-		cpu_temps.append(0.0)
 	return
 
 
@@ -156,14 +136,6 @@ def parse_zmqmsg(host, msg):
 	difficulty = float(items[6].split('=')[1])
 	cpu_temp = float(items[7].split('=')[1])
 
-	#! Set values in their respective lists
-	cpus_list[index] = cpus
-	hashrates[index] = hpm
-	share_percents[index] = share_percent
-	solved_blocks_list[index] = solved_blocks
-	difficulties[index] = difficulty
-	cpu_temps[index] = cpu_temp
-
 	#! Build the display string entry
 	#! (online, host, hpm, percent, blocks, difficulty, cpus, temp)
 	statinfo_list[index] = (True, host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
@@ -172,19 +144,24 @@ def parse_zmqmsg(host, msg):
 
 #! Calc totals and averages
 def get_totals_avgs():
-	#! Calculate Totals
-	total_hashrate = sum(hashrates)
-	total_share_percent = sum(share_percents)
-	total_solved_blocks = sum(solved_blocks_list)
-	total_cpus = sum(cpus_list)
+	total_hashrate = 0.0
+	total_solved_blocks = 0
+	total_cpus = 0
+	online_hosts = list(filter(lambda info: info[0] == True, statinfo_list))
+	length = len(online_hosts) if len(online_hosts) > 0 else 1
 
-	#! Calculate Averages
-	avg_hashrate = total_hashrate / len(hashrates)
-	avg_share_percent = total_share_percent / len(share_percents)
-	avg_solved_blocks = total_solved_blocks / len(solved_blocks_list)
-	avg_difficulty = sum(difficulties) / len(difficulties)
-	avg_cpus = total_cpus / len(cpus_list)
-	avg_cpu_temp = sum(cpu_temps) / len(cpu_temps)
+	#! Calculate totals
+	total_hashrate      = sum(i for _,_,i,_,_,_,_,_ in online_hosts)
+	total_solved_blocks = sum(i for _,_,_,_,i,_,_,_ in online_hosts)
+	total_cpus          = sum(i for _,_,_,_,_,_,i,_ in online_hosts)
+
+	#! Calculate averages
+	avg_hashrate = total_hashrate / length
+	avg_share_percent   = sum(i for _,_,_,i,_,_,_,_ in online_hosts) / length
+	avg_solved_blocks   = total_solved_blocks / length
+	avg_difficulty      = sum(i for _,_,_,_,_,i,_,_ in online_hosts) / length
+	avg_cpus            = total_cpus / length
+	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,i in online_hosts) / length
 
 	avg_str = "Average        {0:>11.3f} H/m    {1:>5.2f}%   {2:>6}   {3:<10f} │ {4:>4.2f}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
 	total_str = "Total          {0:>11.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
@@ -237,23 +214,9 @@ def write_to_scr(hl_host):
 	for statinfo in statinfo_list:
 		#! Highlight host
 		hl = (True if i == (hl_host + 1) else False)
-
 		apply_formatting(i, statinfo, hl)
 		i += 1
 		
-		
-#	for string in statstrs:
-#		#! Print host strings
-#		if i == (hl_host + 1): #! Start of display offset
-#			stdscr.addstr(i,0,"│>│")
-#			stdscr.addstr(" {0} ".format(string), curses.A_REVERSE)
-#			stdscr.addstr("│")
-#		else:
-#			stdscr.addstr(i,0,"│ │ {0} │".format(string))
-#
-#		stdscr.clrtoeol()
-#		i += 1
-
 	#! Print empty lines to fill the terminal
 	for b in range(i,term_height):
 		stdscr.addstr(b,0,          "│ │                                                                │                │")
@@ -271,7 +234,7 @@ def write_to_scr(hl_host):
 #! Applies formatting and coloring for written lines
 def apply_formatting(line, statinfo, hl,):
 	hl_prefix = "│>│"
-	prefix =   "│ │"
+	prefix =    "│ │"
 
 	#! Host online, highlighted
 	if statinfo[0] == True and hl == True:
@@ -324,7 +287,6 @@ def main(stdscr):
 
 	#! Initialize
 	init_display()
-	init_lists()
 	init_zmqsockets()
 	signal.signal(signal.SIGINT, signal_handler)
 
