@@ -26,7 +26,8 @@ modify the source of `miner-apid.py` to reflect that. Do this BEFORE you copy
 `miner-apid.py` to each machine to your system. Also note that `miner-apid.py`
 uses port 5048 for communication with the monitor.
 
-1) Install `python3`, `pip3`, `libzmq5`, and `pyzmq` on your mining machine
+1) Install `python3`, `pip3`, `libzmq5`, and `pyzmq` on each mining machine AND
+the machine that `monitor.py` will run on:
 ```bash
 sudo apt-get install python3 python3-pip libzmq5
 sudo -H pip3 install --upgrade pip
