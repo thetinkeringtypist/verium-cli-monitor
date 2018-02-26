@@ -9,19 +9,22 @@ CLI monitor.
 
 
 ### How To Install & Use
-This monitor is for use with Fireworm71's `cpuminer` (veriumMiner).
-It currently supports API version 1.1
+This monitor currently supports `cpuminer` API version 1.1. This means that it
+should work with the following CPU miners:
+ * [Fireworm71's veriumMiner](https://github.com/fireworm71/veriumMiner)
+ * [effectsToCause's veriumMiner](https://github.com/fireworm71/veriumMiner)
+ * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
 
 There are two parts to this setup:
  * The Monitor (`monitor.py`): the display through which you will see the status of your monitors, and
  * The monitor API daemon (`miner-apid.py`): the agent that will provide miner statistics when requested by the monitor
 
 Firstly, it should be noted that the `miner-apid.py` script is preconfigured for
-a setup that uses two of Fireworm71's `cpuminer` instances: one using port 4048
-and one using port 4049. If you are using any other miner configuration, you
-will need to modify the source of `miner-apid.py` to reflect that. Do this BEFORE
-you copy `miner-apid.py` to each machine to your system. Also note that
-`miner-apid.py` uses port 5048 for communication with the monitor.
+a setup that uses two `cpuminer` instances: one using port 4048 and one using
+port 4049. If you are using any other miner configuration, you will need to
+modify the source of `miner-apid.py` to reflect that. Do this BEFORE you copy
+`miner-apid.py` to each machine to your system. Also note that `miner-apid.py`
+uses port 5048 for communication with the monitor.
 
 1) Install `python3`, `pip3`, `libzmq5`, and `pyzmq` on your mining machine
 ```bash
