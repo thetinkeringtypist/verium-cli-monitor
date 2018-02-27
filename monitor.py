@@ -55,6 +55,14 @@ def init_display():
 	#! Footer window (index 2)
 	windows.append(curses.newwin(4, term_width, term_height - 4, 0))
 
+	if curses.has_colors():
+		curses.start_color()
+		curses.use_default_colors()
+		init_colors()
+		windows[0].attrset(curses.color_pair(7))
+		windows[1].attrset(curses.color_pair(7))
+		windows[2].attrset(curses.color_pair(7))
+
 
 	curses.noecho()
 	curses.cbreak()
@@ -63,6 +71,11 @@ def init_display():
 	curses.curs_set(0)
 	stdscr.clear()
 	return
+
+
+#! Define custom colors
+def init_colors():
+	curses.init_pair(7, 255, -1)
 
 
 #! Initialize zmqsockets
