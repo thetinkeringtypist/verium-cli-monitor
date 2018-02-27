@@ -242,7 +242,8 @@ def run_display_user_input():
 		elif c == curses.KEY_END:
 			hl_host = hosts_height - 1
 			start_y = hl_host - hosts_scroll_max
-		elif c == ord('q'):
+		elif c == ord('q') or c == 27:
+			#! Either q or ESC to quit
 			break
 		else:
 			pass #! Leave everything as is
