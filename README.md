@@ -25,7 +25,12 @@ a setup that uses two `cpuminer` instances: one using port 4048 and one using
 port 4049. If you are using any other number of miners, just change the port
 numbers in `miner-apid.py` BEFORE you copy `miner-apid.py` to each of your
 miner machines. Also note that `miner-apid.py` uses port 5048 for communication
-with the monitor.
+with the monitor:
+
+```python
+#! miner-apid.py
+ports = [4048, 4049]   #! NOTE: Change port numbers to those in use by your miners
+```
 
 
 1) Install `python3`, `pip3`, `libzmq5`, and `pyzmq` on each mining machine AND
