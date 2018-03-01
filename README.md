@@ -15,6 +15,7 @@ should work with the following CPU miners:
  * [effectsToCause's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
 
+
 There are two parts to this setup:
  * The Monitor (`monitor.py`): the display through which you will see the status of your monitors, and
  * The monitor API daemon (`miner-apid.py`): the agent that will provide miner statistics when requested by the monitor
@@ -37,7 +38,6 @@ ports = [4048, 4049]   #! NOTE: Change port numbers to those in use by your mine
 the machine that `monitor.py` will run on:
 ```bash
 sudo apt-get install python3 python3-pip libzmq5
-sudo -H pip3 install --upgrade pip
 sudo -H pip3 install pyzmq
 ```
 
@@ -67,5 +67,18 @@ enumerated in your `/etc/hosts` file)
 mining machines
 
 
-### License
-Free to use, just give credit where it's due.
+### Monitor Controls
+ * Arrow Up, Arrow Down - Up and down
+ * Home, End - First worker, last worker
+ * q, ESC - Quit
+
+
+### Example Network Diagram
+An example network diagram can be found [here](https://github.com/bezeredi/verium-cli-monitor/blob/master/example-diagram.txt).
+
+
+### License & Donations
+Free to use, just give credit where it's due. If this software helped you out,
+consider a small donation.
+
+VRM: VBwPRc7gmmqgJTsiB6LqsStVk2nxgRoyjh
