@@ -19,12 +19,14 @@ There are two parts to this setup:
  * The Monitor (`monitor.py`): the display through which you will see the status of your monitors, and
  * The monitor API daemon (`miner-apid.py`): the agent that will provide miner statistics when requested by the monitor
 
+
 Firstly, it should be noted that the `miner-apid.py` script is preconfigured for
 a setup that uses two `cpuminer` instances: one using port 4048 and one using
-port 4049. If you are using any other miner configuration, you will need to
-modify the source of `miner-apid.py` to reflect that. Do this BEFORE you copy
-`miner-apid.py` to each machine to your system. Also note that `miner-apid.py`
-uses port 5048 for communication with the monitor.
+port 4049. If you are using any other number of miners, just change the port
+numbers in `miner-apid.py` BEFORE you copy `miner-apid.py` to each of your
+miner machines. Also note that `miner-apid.py` uses port 5048 for communication
+with the monitor.
+
 
 1) Install `python3`, `pip3`, `libzmq5`, and `pyzmq` on each mining machine AND
 the machine that `monitor.py` will run on:

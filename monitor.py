@@ -116,13 +116,12 @@ def kill_program():
 def process_zmqmsg(host):
 	while not kill_threads.is_set():
 		time.sleep(1)
-		index = hosts.index(host)
-		zmqsocket = zmqsockets[index]
+		zmqsocket = zmqsockets[hosts.index(host)]
 
 		try:
 			zmqsocket.send_string("summary")
 			msg = zmqsocket.recv_string()
-			parse_zmqmsg(host,msg)
+			parse_summary_msg(host,msg)
 		except zmq.error.ZMQError as e:
 			set_host_offline(host)
 			zmq_reconnect(zmqsocket, host)
@@ -156,27 +155,40 @@ def zmq_reconnect(zmqsocket, host):
 
 
 #! Parse message received from server
-def parse_zmqmsg(host, msg):
-	items = msg.split(",")
+def parse_summary_msg(host, msg):
+	data_points = msg.split(";")
 
 	#! Get the index of the host
-#	host = items[1].split('=')[1]
 	index = hosts.index(host)
 
 	#! Get values
-	cpus = int(items[1].split('=')[1])
-	hpm = float(items[2].split('=')[1])
-	solved_blocks = int(items[3].split('=')[1])
-	accepted_shares = int(items[4].split('=')[1])
-	rejected_shares = int(items[5].split('=')[1])
-	total_shares = accepted_shares + rejected_shares
-	share_percent = float(accepted_shares / (total_shares if total_shares != 0 else 1) * 100.00)
-	difficulty = float(items[6].split('=')[1])
-	cpu_temp = float(items[7].split('=')[1])
+#	host     = data_points[0].split('=')[1]
+	name     = data_points[1].split('=')[1]
+	version  = data_points[2].split('=')[1]
+	api      = data_points[3].split('=')[1]
+	algo     = data_points[4].split('=')[1]
+	cpus     = int(data_points[5].split('=')[1])
+	khps     = float(data_points[6].split('=')[1])
+	solved   = int(data_points[7].split('=')[1])
+	accepted = int(data_points[8].split('=')[1])
+	rejected = int(data_points[9].split('=')[1])
+	accpm    = float(data_points[10].split('=')[1])
+	diff     = float(data_points[11].split('=')[1])
+	cpu_temp = float(data_points[12].split('=')[1])
+	cpu_fan  = int(data_points[13].split('=')[1])
+	cpu_freq = int(data_points[14].split('=')[1])
+	uptime   = int(data_points[14].split('=')[1])   #! Uptime is in seconds
+	time_sec = int(data_points[16].split('=')[1])   #! Time is in seconds
+
+	#! Calculate hpm
+	hpm     = khps * 1000 * 60
+	total = accepted + rejected if accepted + rejected > 0 else 1
+	percent = accepted / (total) * 100
 
 	#! Build the display string entry
 	#! (online, host, hpm, percent, blocks, difficulty, cpus, temp)
-	statinfo_list[index] = (True, host, hpm, share_percent, solved_blocks, difficulty, cpus, cpu_temp)
+	statinfo_list[index] = (
+		True, host, hpm, percent, solved, diff, cpus, cpu_temp)
 	return
 
 
@@ -201,8 +213,16 @@ def get_totals_avgs():
 	avg_cpus            = total_cpus / length
 	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,i in online_hosts) / length
 
-	avg_str = "Average {0:>18.3f} H/m   {1:>6.2f}%   {2:>6}   {3:<10f} │ {4:>4.2f}   {5:>5.1f}°C".format(avg_hashrate,avg_share_percent,avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp)
-	total_str = "Total   {0:>18.3f} H/m   ---.--%   {1:>6}   -.-------- │ {2:>4}   ---.-°C".format(total_hashrate,total_solved_blocks,total_cpus)
+	#! Formulate Average String
+	avg_str = ("Average {0:>18.3f} H/m   {1:>6.2f}%   {2:>6}    {3:<8f}  "
+		"│ {4:>4.2f}   {5:>5.1f}°C".format(
+		avg_hashrate,avg_share_percent,avg_solved_blocks,
+		avg_difficulty,avg_cpus,avg_cpu_temp))
+	
+	#! Formulate Average String
+	total_str = ("Total   {0:>18.3f} H/m   ---.--%   {1:>6}    -.------  "
+		"│ {2:>4}   ---.-°C".format(
+		total_hashrate,total_solved_blocks,total_cpus))
 
 	return (total_str, avg_str)
 	
@@ -323,7 +343,8 @@ def apply_formatting(line, statinfo, hl):
 		hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) #! HPM
 		hosts_win.addstr("   ", curses.A_REVERSE)
 		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   #! Share %
-		hosts_win.addstr("   {0:>6}   {1:<10} │ {2:>4}   ".format(statinfo[4], statinfo[5], statinfo[6]), curses.A_REVERSE)
+		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
+			statinfo[4], statinfo[5], statinfo[6]), curses.A_REVERSE)
 		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)  #! CPU Temp
 
 	#! Host online, not highlighted
@@ -333,18 +354,19 @@ def apply_formatting(line, statinfo, hl):
 		hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2])) #! HPM
 		hosts_win.addstr("   ")
 		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]))   #! Share %
-		hosts_win.addstr("   {0:>6}   {1:<10} │ {2:>4}   ".format(statinfo[4], statinfo[5], statinfo[6]))
+		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
+			statinfo[4], statinfo[5], statinfo[6]))
 		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]))  #! CPU Temp
 		
 	#! Host offline, highlighted
 	elif statinfo[0] == False and hl == True:
 		hosts_win.addstr(line, 0, hl_prefix)
-		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
+		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    -.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
 
 	#! host offline, non-highlighted
 	else:
 		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------   -.-------- │ ----   ---.-°C ".format(statinfo[1]))
+		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    -.------  │ ----   ---.-°C ".format(statinfo[1]))
 		
 	
 	#! End of Line
