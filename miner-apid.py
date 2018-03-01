@@ -14,7 +14,6 @@
 #  background after your cpuminers.
 import zmq
 import socket as pysocket
-import sys
 import signal
 import time
 
