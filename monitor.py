@@ -138,19 +138,19 @@ def set_host_offline(host):
 
 #! Reconnect the zmqsocket
 def zmq_reconnect(zmqsocket, host):
-	#! Close existing socket
+	#! Disconnect existing socket
 	index = hosts.index(host)
-	zmqsocket.close()
+	zmqsocket.disconnect("tcp://%s:5048" % host)
 	zmqsockets[index] = None
 	
-	#! Create and connect the new socket
+	#! Reconnect the existing socket
 	new_zmqsocket = context.socket(zmq.REQ)
 	new_zmqsocket.connect("tcp://%s:5048" % host)
 	new_zmqsocket.setsockopt(zmq.SNDTIMEO, 5000)  #! Arbitrary number of seconds
 	new_zmqsocket.setsockopt(zmq.RCVTIMEO, 5000)  #! Arbitrary number of seconds
 	new_zmqsocket.setsockopt(zmq.LINGER, 1000)    #! Arbitrary number of seconds
-	zmqsockets[index] = new_zmqsocket
 
+	zmqsockets[index] = new_zmqsocket
 	return
 
 
