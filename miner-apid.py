@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 #
+# NOTE: NO LONGER REQUIRED TO MONITOR WORKERS ON A NETWORK
+#
 #! Author: Bezeredi, Evan D.
 #
 #! Script that replies with miner info in a readable format for requesters.
