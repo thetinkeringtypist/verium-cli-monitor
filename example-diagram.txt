@@ -6,10 +6,8 @@ Example Setup Diagram
 │     Host #1   ││     Host #2   ││     Host #3   ││     Host #4   │
 ├───────────────┤├───────────────┤├───────────────┤├───────────────┤
 │cpuminer (4048)││cpuminer (4048)││cpuminer (4048)││cpuminer (4049)│
-├───────────────┤├───────────────┤├───────────────┤├───────────────┤
-│cpuminer (4049)││cpuminer (4049)││ miner-apid.py ││ miner-apid.py │
 ├───────────────┤├───────────────┤└───────┬───────┘└───────┬───────┘
-│ miner-apid.py ││ miner-apid.py │        │                │
+│cpuminer (4049)││cpuminer (4049)│        │                │
 └───────┬───────┘└───────┬───────┘        │                │
         │                │                │                │
         └────────────────┴─────────┬──────┴────────────────┘
@@ -32,19 +30,6 @@ Example Setup Diagram
 
 Important Files and Changes by Host
 ===================================
-Host #1:
-miner-apid.py: no source changes
-
-Host #2:
-miner-apid.py: no source changes
-
-Host #3:
-miner-apid.py: ports = [4048]
-
-Host #4:
-miner-apid.py: ports = [4049]
-
-
 LAN Controller: 
 #! .chosts is used by monitor.py. It has the list of hosts you wish to monitor
 /home/<username>/.chosts:

@@ -11,21 +11,19 @@
 #
 #! I have this script running on my LAN controller so that finding each machine
 #  on the LAN is not a problem
-import zmq
+import socket as pysocket
 import time
 import signal
 import threading
 import curses
 from pathlib import Path
 
+#! NOTE: Change to the ports your miners are using
+ports = [4048,4049]
 
 #! Thread variables
 threads = []
 kill_threads = threading.Event()
-
-#! ZMQ variables
-context = zmq.Context()
-zmqsockets = []
 
 #! Display varaibles
 stdscr = curses.initscr()
@@ -78,18 +76,6 @@ def init_colors():
 	curses.init_pair(7, 255, -1)
 
 
-#! Initialize zmqsockets
-def init_zmqsockets():
-	for host in hosts:
-		s = context.socket(zmq.REQ)
-		s.connect("tcp://%s:5048" % host)
-		s.setsockopt(zmq.SNDTIMEO, 5000)
-		s.setsockopt(zmq.RCVTIMEO, 5000)
-		s.setsockopt(zmq.LINGER, 1000)
-		zmqsockets.append(s)
-	return
-
-
 #! Interrupt signal handler
 def signal_handler(signal, frame):
 	kill_program()
@@ -103,29 +89,38 @@ def kill_program():
 	for t in threads:
 		t.join()
 
-	#! Kill ZMQ stuff
-	for zmqsocket in zmqsockets:
-		zmqsocket.close()
-	context.term()
-
 	exit()
 	return
 
 
 #! Process messages from a zmqsocket
-def process_zmqmsg(host):
-	while not kill_threads.is_set():
-		time.sleep(1)
-		zmqsocket = zmqsockets[hosts.index(host)]
+def process_worker_msg(host):
+	miner_results = []
+	buffer_size = 4096
 
-		try:
-			zmqsocket.send_string("summary")
-			msg = zmqsocket.recv_string()
-			parse_summary_msg(host,msg)
-		except zmq.error.ZMQError as e:
-			set_host_offline(host)
-			zmq_reconnect(zmqsocket, host)
-		
+	while not kill_threads.is_set():
+		miner_results.clear()
+		time.sleep(1)
+
+		#! For each possible port in use
+		for port in ports:
+			socket = pysocket.socket(pysocket.AF_INET, pysocket.SOCK_STREAM)
+			try:
+				#! Request miner information
+				socket.connect((host, port))
+				socket.settimeout(5)
+				socket.send("summary".encode())
+
+				#! Receive miner information
+				socket.settimeout(5)
+				msg = socket.recv(buffer_size).decode()
+				miner_results.append(parse_summary_msg(host,msg))
+			except:
+				set_host_offline(host)
+			
+			socket.close()
+		combine_results(host, miner_results)
+
 	return
 
 
@@ -136,49 +131,27 @@ def set_host_offline(host):
 	return
 
 
-#! Reconnect the zmqsocket
-def zmq_reconnect(zmqsocket, host):
-	#! Disconnect existing socket
-	index = hosts.index(host)
-	zmqsocket.disconnect("tcp://%s:5048" % host)
-	zmqsockets[index] = None
-	
-	#! Reconnect the existing socket
-	new_zmqsocket = context.socket(zmq.REQ)
-	new_zmqsocket.connect("tcp://%s:5048" % host)
-	new_zmqsocket.setsockopt(zmq.SNDTIMEO, 5000)  #! Arbitrary number of seconds
-	new_zmqsocket.setsockopt(zmq.RCVTIMEO, 5000)  #! Arbitrary number of seconds
-	new_zmqsocket.setsockopt(zmq.LINGER, 1000)    #! Arbitrary number of seconds
-
-	zmqsockets[index] = new_zmqsocket
-	return
-
-
 #! Parse message received from server
 def parse_summary_msg(host, msg):
-	data_points = msg.split(";")
-
-	#! Get the index of the host
-	index = hosts.index(host)
+	data_points = msg.split('|')[0].split(';')
 
 	#! Get values
-#	host     = data_points[0].split('=')[1]
-	name     = data_points[1].split('=')[1]
-	version  = data_points[2].split('=')[1]
-	api      = data_points[3].split('=')[1]
-	algo     = data_points[4].split('=')[1]
-	cpus     = int(data_points[5].split('=')[1])
-	khps     = float(data_points[6].split('=')[1])
-	solved   = int(data_points[7].split('=')[1])
-	accepted = int(data_points[8].split('=')[1])
-	rejected = int(data_points[9].split('=')[1])
-	accpm    = float(data_points[10].split('=')[1])
-	diff     = float(data_points[11].split('=')[1])
-	cpu_temp = float(data_points[12].split('=')[1])
-	cpu_fan  = int(data_points[13].split('=')[1])
-	cpu_freq = int(data_points[14].split('=')[1])
+	name     = data_points[0].split('=')[1]
+	version  = data_points[1].split('=')[1]
+	api      = data_points[2].split('=')[1]
+	algo     = data_points[3].split('=')[1]
+	cpus     = int(data_points[4].split('=')[1])
+	khps     = float(data_points[5].split('=')[1])
+	solved   = int(data_points[6].split('=')[1])
+	accepted = int(data_points[7].split('=')[1])
+	rejected = int(data_points[8].split('=')[1])
+	accpm    = float(data_points[9].split('=')[1])
+	diff     = float(data_points[10].split('=')[1])
+	cpu_temp = float(data_points[11].split('=')[1])
+	cpu_fan  = int(data_points[12].split('=')[1])
+	cpu_freq = int(data_points[13].split('=')[1])
 	uptime   = int(data_points[14].split('=')[1])   #! Uptime is in seconds
-	time_sec = int(data_points[16].split('=')[1])   #! Time is in seconds
+	time_sec = int(data_points[15].split('=')[1])   #! Time is in seconds
 
 	#! Calculate hpm
 	hpm     = khps * 1000 * 60
@@ -187,8 +160,44 @@ def parse_summary_msg(host, msg):
 
 	#! Build the display string entry
 	#! (online, host, hpm, percent, blocks, difficulty, cpus, temp)
+	return (True, host, hpm, percent, solved, diff, cpus, cpu_temp)
+
+
+#! Combine results from each miner status
+def combine_results(host, miner_results):
+	index = hosts.index(host)
+	count = len(miner_results)
+
+	#! Edge cases
+	if count == 0:
+		set_host_offline(host)
+		return
+	if count == 1:
+		statinfo_list[index] = miner_results[0]
+		return
+
+	#! Combine results from all miners on a worker
+	hpm = 0
+	solved = 0
+	percent = 0.0
+	cpus = 0
+	diff = 0.0
+	cpu_temp = 0.0
+	for result in miner_results:
+		hpm += result[2]
+		percent += result[3]
+		solved += result[4]
+		cpus += result[6]
+
+		if result[5] > diff:
+			diff = result[5]
+		if result[7] > cpu_temp:
+			cpu_temp = result[7]
+
+	#! Build the display string entry
+	percent /= count if count > 0 else 1  #! Normalize percent
 	statinfo_list[index] = (
-		True, host, hpm, percent, solved, diff, cpus, cpu_temp)
+		miner_results[0][0], host, hpm, percent, solved, diff, cpus, cpu_temp)
 	return
 
 
@@ -388,13 +397,11 @@ def main(stdscr):
 
 	#! Initialize
 	init_display()
-	init_zmqsockets()
 	signal.signal(signal.SIGINT, signal_handler)
 
 	#! Create threads and start
-	for zmqsocket in zmqsockets:
-		host = hosts[zmqsockets.index(zmqsocket)]
-		t = threading.Thread(target=process_zmqmsg, args=(host,))
+	for host in hosts:
+		t = threading.Thread(target=process_worker_msg, args=(host,))
 		threads.append(t)
 		t.start()
 
