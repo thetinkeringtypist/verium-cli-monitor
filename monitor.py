@@ -57,9 +57,9 @@ def init_display():
 		curses.start_color()
 		curses.use_default_colors()
 		init_colors()
-		windows[0].attrset(curses.color_pair(7))
-		windows[1].attrset(curses.color_pair(7))
-		windows[2].attrset(curses.color_pair(7))
+		windows[0].attrset(curses.color_pair(0))
+		windows[1].attrset(curses.color_pair(0))
+		windows[2].attrset(curses.color_pair(0))
 
 
 	curses.noecho()
