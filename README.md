@@ -16,13 +16,14 @@ should work with the following CPU miners:
  * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
 
 
-1) Copy `monitor.py` to a computer on your network that can reach all of your
-miners. For me, this was my LAN controller.
 
-2) Make sure each `cpuminer` is configured with the correct `api-bind` address:
+1) Make sure each `cpuminer` is configured with the correct `api-bind` address:
 ```bash
 cpuminer [options] --api-bind "0.0.0.0:<port-number>"
 ```
+
+2) Copy `monitor.py` to a computer on your network that can reach all of your
+miners. For me, this was my LAN controller.
 
 3) Change the line in `monitor.py` to include any port in use by a miner on
 your network:
