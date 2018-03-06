@@ -73,8 +73,8 @@ def init_display():
 
 #! Define custom colors
 def init_colors():
-	curses.init_pair(7, 255, -1)
-
+	for i in range(0, curses.COLORS):
+        	curses.init_pair(i + 1, i, -1)
 
 #! Interrupt signal handler
 def signal_handler(signal, frame):
