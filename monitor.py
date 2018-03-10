@@ -5,7 +5,7 @@
 # CLI Monitor to display cpuminer information for each worker on the LAN
 #
 #! NOTE: Requires a list of hostnames/IPs on the LAN in
-#        /home/<username>/.chosts
+#        /home/<username>/.chosts; it is created if it does not exist.
 #
 #       Also requires miner-apid.py to running on each worker.
 #
@@ -19,7 +19,7 @@ import curses
 from pathlib import Path
 
 #! NOTE: Change to the ports your miners are using
-ports = [4048,4049]
+ports = [ 4048, 4049 ]
 hosts_file_str = "{0}/.chosts".format(Path.home())
 
 
@@ -30,18 +30,18 @@ kill_threads = threading.Event()
 # Display varaibles
 stdscr = curses.initscr()
 windows = []
-hosts = []
-statinfo_list = []
+hosts = {}
+hosts_display = []
 
 
 # Initialize display variables
 def init_display():
 	(term_height, term_width) = stdscr.getmaxyx()
 
-	for host in hosts:
+	for host in hosts.keys():
 		# Only (offline, host) since no value will be accessed 
 		# other than these if the host is offline
-		statinfo_list.append((False, host))
+		hosts[host] = (False, host)
 
 	# Header window (index 0)
 	windows.append(curses.newwin(3, term_width, 0, 0))
@@ -128,8 +128,7 @@ def process_worker_msg(host):
 
 # Change display to reflect that the host is offline
 def set_host_offline(host):
-	index = hosts.index(host)
-	statinfo_list[index] = (False, host)
+	hosts[host] = (False, host)
 	return
 
 
@@ -167,7 +166,6 @@ def parse_summary_msg(host, msg):
 
 # Combine results from each miner status
 def combine_results(host, miner_results):
-	index = hosts.index(host)
 	count = len(miner_results)
 
 	# Edge cases
@@ -175,7 +173,7 @@ def combine_results(host, miner_results):
 		set_host_offline(host)
 		return
 	if count == 1:
-		statinfo_list[index] = miner_results[0]
+		hosts[host] = miner_results[0]
 		return
 
 	# Combine results from all miners on a worker
@@ -198,7 +196,7 @@ def combine_results(host, miner_results):
 
 	# Build the display string entry
 	percent /= count if count > 0 else 1  # Normalize percent
-	statinfo_list[index] = (
+	hosts[host] = (
 		miner_results[0][0], host, hpm, percent, solved, diff, cpus, cpu_temp)
 	return
 
@@ -208,7 +206,7 @@ def get_totals_avgs():
 	total_hashrate = 0.0
 	total_solved_blocks = 0
 	total_cpus = 0
-	online_hosts = list(filter(lambda info: info[0] == True, statinfo_list))
+	online_hosts = list(filter(lambda info: info[0] == True, hosts.values()))
 	length = len(online_hosts) if len(online_hosts) > 0 else 1
 
 	# Calculate totals
@@ -314,10 +312,10 @@ def write_to_scr(hl_host):
 	(hosts_height, _) = hosts_win.getmaxyx()
 	
 	i = 0
-	for statinfo in statinfo_list:
+	for host in hosts_display:
 		# Highlight host
 		hl = (True if i == hl_host else False)
-		apply_formatting(i, statinfo, hl)
+		apply_formatting(i, hosts[host], hl)
 		i += 1
 		
 	# Print empty lines to fill the terminal
@@ -395,7 +393,9 @@ def main(stdscr):
 	Path(hosts_file_str).touch(exist_ok=True)
 	hosts_file = open(hosts_file_str,'r')
 	for line in hosts_file:
-		hosts.append(line.rstrip())
+		hostname = line.rstrip()
+		hosts[hostname] = (False, hostname)
+		hosts_display.append(hostname)
 	hosts_file.close()
 
 	# Initialize
@@ -403,7 +403,7 @@ def main(stdscr):
 	signal.signal(signal.SIGINT, signal_handler)
 
 	# Create threads and start
-	for host in hosts:
+	for host in hosts.keys():
 		t = threading.Thread(target=process_worker_msg, args=(host,))
 		threads.append(t)
 		t.start()
