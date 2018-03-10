@@ -22,22 +22,25 @@ from pathlib import Path
 ports = [4048,4049]
 hosts_file_str = "{0}/.chosts".format(Path.home())
 
-
 # Thread variables
 threads = []
 kill_threads = threading.Event()
 
 # Display varaibles
 stdscr = curses.initscr()
-windows = []
+header_win = None
+hosts_win = None
+footer_win = None
 hosts = {}
 hosts_display = []
+host_count = 0
 
 
 # Initialize display variables
 def init_display():
-	term_width = 100 # Arbitrary number for how wide the display is
-	(term_height, _) = stdscr.getmaxyx()
+	global header_win, hosts_win, footer_win
+	term_width = 87 # Arbitrary number for how wide the display is
+	term_height = curses.LINES
 
 	for host in hosts.keys():
 		# Only (offline, host) since no value will be accessed 
@@ -45,29 +48,29 @@ def init_display():
 		hosts[host] = (False, host)
 
 	# Header window (index 0)
-	windows.append(curses.newpad(3, term_width))
+	header_win = curses.newpad(3, term_width)
 
 	# Hosts window (pad) (index 1)
-	if len(hosts) < (term_height - 7): # Header and footer
-		windows.append(curses.newpad(term_height - 7, term_width))
+	if host_count < (term_height - 7): # Header and footer
+		hosts_win = curses.newpad(term_height - 7, term_width)
 	else:
-		windows.append(curses.newpad(len(hosts), term_width))
+		hosts_win = curses.newpad(host_count, term_width)
 		
 	# Footer window (index 2)
-	windows.append(curses.newpad(4, term_width))
+	footer_win = curses.newpad(4, term_width)
 
 	if curses.has_colors():
 		curses.start_color()
 		curses.use_default_colors()
 		init_colors()
-		windows[0].attrset(curses.color_pair(0))
-		windows[1].attrset(curses.color_pair(0))
-		windows[2].attrset(curses.color_pair(0))
+		header_win.attrset(curses.color_pair(0))
+		hosts_win.attrset(curses.color_pair(0))
+		footer_win.attrset(curses.color_pair(0))
 
 	curses.noecho()
 	curses.cbreak()
-	windows[1].keypad(True)
-	windows[1].nodelay(True) #! Nonblocking user input
+	hosts_win.keypad(True)
+	hosts_win.nodelay(True) #! Nonblocking user input
 	curses.curs_set(0)
 	stdscr.clear()
 	return
@@ -77,6 +80,7 @@ def init_display():
 def init_colors():
 	for i in range(0, curses.COLORS):
         	curses.init_pair(i + 1, i, -1)
+
 
 # Interrupt signal handler
 def signal_handler(signal, frame):
@@ -110,11 +114,12 @@ def process_worker_msg(host):
 			try:
 				# Request miner information
 				socket.connect((host, port))
-				socket.settimeout(5)
+				socket.setblocking(False)
+				socket.settimeout(5000)
 				socket.send("summary".encode())
 
 				# Receive miner information
-				socket.settimeout(5)
+				socket.settimeout(5000)
 				msg = socket.recv(buffer_size).decode()
 				miner_results.append(parse_summary_msg(host,msg))
 			except:
@@ -206,8 +211,9 @@ def get_totals_avgs():
 	total_hashrate = 0.0
 	total_solved_blocks = 0
 	total_cpus = 0
-	online_hosts = list(filter(lambda info: info[0] == True, hosts.values()))
-	length = len(online_hosts) if len(online_hosts) > 0 else 1
+	online_hosts = list(filter(lambda statinfo: statinfo[0] == True, hosts.values()))
+	count = len(online_hosts)
+	length = count if count > 0 else 1
 
 	# Calculate totals
 	total_hashrate      = sum(i for _,_,i,_,_,_,_,_ in online_hosts)
@@ -239,10 +245,8 @@ def get_totals_avgs():
 # The display and user input loop
 def run_display_user_input(display_width):
 	# Window info
-	header_win = windows[0]
-	hosts_win = windows[1]
-	footer_win = windows[2]
-	(term_height, _) = stdscr.getmaxyx()
+	global header_win, hosts_win, footer_win
+	term_height = curses.LINES
 	(header_height, _) = header_win.getmaxyx()
 	(hosts_height, _) = hosts_win.getmaxyx()
 	(footer_height, _) = footer_win.getmaxyx()
@@ -250,22 +254,21 @@ def run_display_user_input(display_width):
 	hosts_scroll_max = term_height - header_height - footer_height - 1
 	footer_start = term_height - footer_height - 1
 	header_stop = header_height - 1
-	hosts_len = len(hosts)
 	hl_host = 0
 	start_y = 0
-	resized = False
+	quitting = False
 
 	# Print header information
-	header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬─────"
-		"────┬────────┬────────────┬──────┬─────────┐")
-	header_win.clrtoeol()
-	header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │ Shar"
-		"e % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
-	header_win.clrtoeol()
-	header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴─────"
-		"────┴────────┴────────────┼──────┴─────────┤")
-	header_win.clrtoeol()
 	try:
+		header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬─────"
+			"────┬────────┬────────────┬──────┬─────────┐")
+		header_win.clrtoeol()
+		header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │ Shar"
+			"e % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
+		header_win.clrtoeol()
+		header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴─────"
+			"────┴────────┴────────────┼──────┴─────────┤")
+		header_win.clrtoeol()
 		header_win.noutrefresh(0,0, 0,0, header_stop,display_width)
 	except curses.error as e:
 		pass
@@ -277,7 +280,7 @@ def run_display_user_input(display_width):
 		# Get user input
 		c = hosts_win.getch()  # Calls stdscr.refresh()
 		if c == curses.KEY_DOWN:
-			if hl_host < (hosts_height - 1) and hl_host < (hosts_len - 1):
+			if hl_host < (hosts_height - 1) and hl_host < (host_count - 1):
 				hl_host += 1
 			if start_y <= (hl_host - hosts_scroll_max - 1):
 				start_y += 1 
@@ -294,11 +297,11 @@ def run_display_user_input(display_width):
 			start_y = hl_host - hosts_scroll_max
 		elif c == ord('q') or c == 27:
 			# Either q or ESC to quit
-			resized = False
+			quitting = True
 			curses.doupdate()
 			break
 		elif c == curses.KEY_RESIZE:
-			resized = True
+			quitting = False
 			curses.update_lines_cols()
 			break
 		else:
@@ -320,13 +323,12 @@ def run_display_user_input(display_width):
 		# ssh
 		time.sleep(0.03)
 
-	return resized
+	return quitting
 
 
 # Write strings to the screen
 def write_to_scr(hl_host):
-	hosts_win = windows[1]
-	footer_win = windows[2]
+	global hosts_win, footer_win
 	(hosts_height, _) = hosts_win.getmaxyx()
 	
 	i = 0
@@ -360,7 +362,7 @@ def write_to_scr(hl_host):
 
 # Applies formatting and coloring for written lines
 def apply_formatting(line, statinfo, hl):
-	hosts_win = windows[1]
+	global hosts_win
 
 	hl_prefix = "│>│"
 	prefix =    "│ │"
@@ -409,7 +411,7 @@ def apply_formatting(line, statinfo, hl):
 
 # Main function
 def main(stdscr):
-	kill_threads.clear()
+	global host_count
 
 	# Create list of hosts
 	Path(hosts_file_str).touch(exist_ok=True)
@@ -419,12 +421,14 @@ def main(stdscr):
 		hosts[hostname] = (False, hostname)
 		hosts_display.append(hostname)
 	hosts_file.close()
+	host_count = len(hosts)
 
 	# Initialize
 	init_display()
 	signal.signal(signal.SIGINT, signal_handler)
 
 	# Create threads and start
+	kill_threads.clear()
 	for host in hosts.keys():
 		t = threading.Thread(target=process_worker_msg, args=(host,))
 		threads.append(t)
@@ -432,9 +436,9 @@ def main(stdscr):
 
 	# Run display and user input loop
 	while True:
-		resized = run_display_user_input(curses.COLS - 1)
+		quitting = run_display_user_input(curses.COLS - 1)
 
-		if not resized:
+		if quitting:
 			break
 
 	# Kill the program
