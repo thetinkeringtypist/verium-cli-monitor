@@ -251,7 +251,7 @@ def get_totals_avgs():
 	
 
 # The display and user input loop
-def run_display_user_input(display_width):
+def run_display_user_input(display_width, hl_host):
 	# Window info
 	global header_win, hosts_win, footer_win
 	term_height = curses.LINES
@@ -262,7 +262,6 @@ def run_display_user_input(display_width):
 	hosts_scroll_max = term_height - header_height - footer_height - 1
 	footer_start = term_height - footer_height - 1
 	header_stop = header_height - 1
-	hl_host = 0
 	start_y = 0
 	quitting = False
 
@@ -332,7 +331,7 @@ def run_display_user_input(display_width):
 		# ssh
 		time.sleep(0.03)
 
-	return quitting
+	return (quitting, hl_host)
 
 
 # Write strings to the screen
@@ -446,8 +445,9 @@ def main(stdscr):
 		t.start()
 
 	# Run display and user input loop
+	hl_host = 0
 	while True:
-		quitting = run_display_user_input(curses.COLS - 1)
+		(quitting, hl_host) = run_display_user_input(curses.COLS - 1, hl_host)
 
 		if quitting:
 			break
