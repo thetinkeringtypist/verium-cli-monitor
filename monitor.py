@@ -17,6 +17,7 @@ import signal
 import threading
 import curses
 from pathlib import Path
+from socket import *
 
 #! NOTE: Change to the ports your miners are using
 ports = [4048,4049]
@@ -100,32 +101,39 @@ def kill_program():
 
 
 # Process messages from a zmqsocket
-def process_worker_msg(host):
-	miner_results = []
-	buffer_size = 4096
+def process_worker_msg(hostname, thread_data):
+	thread_data.miner_results = []
+	thread_data.host = hostname
+	thread_data.socket = None
 
+	miner_results = thread_data.miner_results
+	host = thread_data.host
 	while not kill_threads.is_set():
 		miner_results.clear()
 		time.sleep(1)
 
 		# For each possible port in use
 		for port in ports:
-			socket = pysocket.socket(pysocket.AF_INET, pysocket.SOCK_STREAM)
 			try:
+				thread_data.socket = pysocket.create_connection((host,port), timeout=5)
+				socket = thread_data.socket
+
 				# Request miner information
-				socket.connect((host, port))
-				socket.setblocking(False)
 				socket.settimeout(5000)
 				socket.send("summary".encode())
 
 				# Receive miner information
 				socket.settimeout(5000)
-				msg = socket.recv(buffer_size).decode()
-				miner_results.append(parse_summary_msg(host,msg))
+				thread_data.msg = thread_data.socket.recv(4096).decode()
+				miner_results.append(parse_summary_msg(host,thread_data.msg))
+			except timeout as e:
+				if thread_data.socket is not None:
+					socket.close()
+				set_host_offline(host)
 			except:
+				socket.close()
 				set_host_offline(host)
 			
-			socket.close()
 		combine_results(host, miner_results)
 
 	return
@@ -429,10 +437,12 @@ def main(stdscr):
 	signal.signal(signal.SIGINT, signal_handler)
 
 	# Create threads and start
+	thread_data = threading.local()
 	kill_threads.clear()
 	for host in hosts.keys():
-		t = threading.Thread(target=process_worker_msg, args=(host,))
+		t = threading.Thread(target=process_worker_msg, args=(host,thread_data,))
 		threads.append(t)
+		t.name = host
 		t.start()
 
 	# Run display and user input loop
