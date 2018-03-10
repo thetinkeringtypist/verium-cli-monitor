@@ -20,6 +20,8 @@ from pathlib import Path
 
 #! NOTE: Change to the ports your miners are using
 ports = [4048,4049]
+hosts_file_str = "{0}/.chosts".format(Path.home())
+
 
 #! Thread variables
 threads = []
@@ -390,7 +392,8 @@ def main(stdscr):
 	kill_threads.clear()
 
 	#! Create list of hosts
-	hosts_file = open("{0}/.chosts".format(Path.home()),'r')
+	Path(hosts_file_str).touch(exist_ok=True)
+	hosts_file = open(hosts_file_str,'r')
 	for line in hosts_file:
 		hosts.append(line.rstrip())
 	hosts_file.close()
