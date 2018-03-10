@@ -19,7 +19,7 @@ import curses
 from pathlib import Path
 
 #! NOTE: Change to the ports your miners are using
-ports = [ 4048, 4049 ]
+ports = [4048,4049]
 hosts_file_str = "{0}/.chosts".format(Path.home())
 
 
@@ -62,7 +62,6 @@ def init_display():
 		windows[0].attrset(curses.color_pair(0))
 		windows[1].attrset(curses.color_pair(0))
 		windows[2].attrset(curses.color_pair(0))
-
 
 	curses.noecho()
 	curses.cbreak()
@@ -254,13 +253,19 @@ def run_display_user_input():
 	start_y = 0
 
 	# Print header information
-	header_win.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────────┬────────┬────────────┬──────┬─────────┐")
-	header_win.clrtoeol()
-	header_win.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Share % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
-	header_win.clrtoeol()
-	header_win.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────────┴────────┴────────────┼──────┴─────────┤")
-	header_win.clrtoeol()
-	header_win.refresh()
+	try:
+		header_win.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────"
+			"────┬────────┬────────────┬──────┬─────────┐")
+		header_win.clrtoeol()
+		header_win.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Shar"
+			"e % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
+		header_win.clrtoeol()
+		header_win.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────"
+			"────┴────────┴────────────┼──────┴─────────┤")
+		header_win.clrtoeol()
+		header_win.refresh()
+	except curses.error as e:
+		pass
 
 	while True:
 		# Write hosts to screen and frame the scroll window
@@ -290,8 +295,11 @@ def run_display_user_input():
 		else:
 			pass # Leave everything as is
 
-		hosts_win.refresh( start_y,0, 3,0, footer_start,term_width)
-		footer_win.refresh()
+		try:
+			hosts_win.refresh( start_y,0, 3,0, footer_start,term_width)
+			footer_win.refresh()
+		except curses.error as e:
+			pass
 
 		# Negligable refresh lag while
 		# keeping CPU usage down
@@ -320,19 +328,29 @@ def write_to_scr(hl_host):
 		
 	# Print empty lines to fill the terminal
 	for b in range(i, hosts_height):
-		hosts_win.addstr(b,0,"│ │                                                                │                │")
-		hosts_win.clrtoeol()
+		try:
+			hosts_win.addstr(b,0,"│ │                                          "
+				"                      │                │")
+			hosts_win.clrtoeol()
+		except curses.error as e:
+			pass
+
 
 	# Calculate totals and averages
-	(total_str,avg_str) = get_totals_avgs()
-	footer_win.addstr(0,0, "├─┼────────────────────────────────────────────────────────────────┼────────────────┤")
-	footer_win.clrtoeol()
-	footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
-	footer_win.clrtoeol()
-	footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
-	footer_win.clrtoeol()
-	footer_win.addstr(3,0, "└─┴────────────────────────────────────────────────────────────────┴────────────────┘")
-	footer_win.clrtoeol()
+	try:
+		(total_str,avg_str) = get_totals_avgs()
+		footer_win.addstr(0,0, "├─┼───────────────────────────────────────────"
+			"─────────────────────┼────────────────┤")
+		footer_win.clrtoeol()
+		footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
+		footer_win.clrtoeol()
+		footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
+		footer_win.clrtoeol()
+		footer_win.addstr(3,0, "└─┴───────────────────────────────────────────"
+			"─────────────────────┴────────────────┘")
+		footer_win.clrtoeol()
+	except curses.error as e:
+		pass
 
 	return
 
@@ -344,43 +362,48 @@ def apply_formatting(line, statinfo, hl):
 	hl_prefix = "│>│"
 	prefix =    "│ │"
 
-	# Host online, highlighted
-	if statinfo[0] == True and hl == True:
-		hosts_win.addstr(line, 0, hl_prefix)
-		# Three spaces between each. Space, bar, space between diff and cpus
-		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) # HPM
-		hosts_win.addstr("   ", curses.A_REVERSE)
-		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   # Share %
-		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
-			statinfo[4], statinfo[5], statinfo[6]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)  # CPU Temp
+	try:
 
-	# Host online, not highlighted
-	elif statinfo[0] == True and hl == False:
-		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]))
-		hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2])) # HPM
-		hosts_win.addstr("   ")
-		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]))   # Share %
-		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
-			statinfo[4], statinfo[5], statinfo[6]))
-		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]))  # CPU Temp
-		
-	# Host offline, highlighted
-	elif statinfo[0] == False and hl == True:
-		hosts_win.addstr(line, 0, hl_prefix)
-		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    -.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
-
-	# host offline, non-highlighted
-	else:
-		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    -.------  │ ----   ---.-°C ".format(statinfo[1]))
-		
+		# Host online, highlighted
+		if statinfo[0] == True and hl == True:
+			hosts_win.addstr(line, 0, hl_prefix)
+			# Three spaces between each. Space, bar, space between diff and cpus
+			hosts_win.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
+			hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) # HPM
+			hosts_win.addstr("   ", curses.A_REVERSE)
+			hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   # Share %
+			hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
+				statinfo[4], statinfo[5], statinfo[6]), curses.A_REVERSE)
+			hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)  # CPU Temp
 	
-	# End of Line
-	hosts_win.addstr("│")
-	hosts_win.clrtoeol()
+		# Host online, not highlighted
+		elif statinfo[0] == True and hl == False:
+			hosts_win.addstr(line, 0, prefix)
+			hosts_win.addstr(" {0:<15}   ".format(statinfo[1]))
+			hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2])) # HPM
+			hosts_win.addstr("   ")
+			hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]))   # Share %
+			hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
+				statinfo[4], statinfo[5], statinfo[6]))
+			hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]))  # CPU Temp
+		
+		# Host offline, highlighted
+		elif statinfo[0] == False and hl == True:
+			hosts_win.addstr(line, 0, hl_prefix)
+			hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    "
+				"-.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
+		
+		# host offline, non-highlighted
+		else:
+			hosts_win.addstr(line, 0, prefix)
+			hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    "
+				"-.------  │ ----   ---.-°C ".format(statinfo[1]))
+	
+		# End of Line
+		hosts_win.addstr("│")
+		hosts_win.clrtoeol()
+	except curses.error as e:
+		pass
 
 	return
 
