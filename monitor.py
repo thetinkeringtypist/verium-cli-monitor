@@ -44,7 +44,7 @@ def init_display():
 		hosts[host] = (False, host)
 
 	# Header window (index 0)
-	windows.append(curses.newwin(3, term_width, 0, 0))
+	windows.append(curses.newpad(3, term_width))
 
 	# Hosts window (pad) (index 1)
 	if len(hosts) < (term_height - 7): # Header and footer
@@ -53,7 +53,7 @@ def init_display():
 		windows.append(curses.newpad(len(hosts), term_width))
 		
 	# Footer window (index 2)
-	windows.append(curses.newwin(4, term_width, term_height - 4, 0))
+	windows.append(curses.newpad(4, term_width))
 
 	if curses.has_colors():
 		curses.start_color()
@@ -248,6 +248,7 @@ def run_display_user_input():
 
 	hosts_scroll_max = term_height - header_height - footer_height - 1
 	footer_start = term_height - footer_height - 1
+	header_stop = header_height - 1
 	hosts_len = len(hosts)
 	hl_host = 0
 	start_y = 0
@@ -263,7 +264,7 @@ def run_display_user_input():
 		header_win.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────"
 			"────┴────────┴────────────┼──────┴─────────┤")
 		header_win.clrtoeol()
-		header_win.refresh()
+		header_win.refresh(0,0, 0,0, header_stop, term_width)
 	except curses.error as e:
 		pass
 
@@ -297,7 +298,7 @@ def run_display_user_input():
 
 		try:
 			hosts_win.refresh( start_y,0, 3,0, footer_start,term_width)
-			footer_win.refresh()
+			footer_win.refresh( 0,0, footer_start + 1,0, term_height - 1,term_width)
 		except curses.error as e:
 			pass
 
@@ -326,18 +327,13 @@ def write_to_scr(hl_host):
 		apply_formatting(i, hosts[host], hl)
 		i += 1
 		
-	# Print empty lines to fill the terminal
-	for b in range(i, hosts_height):
-		try:
-			hosts_win.addstr(b,0,"│ │                                          "
-				"                      │                │")
-			hosts_win.clrtoeol()
-		except curses.error as e:
-			pass
-
-
 	# Calculate totals and averages
 	try:
+		# Print empty lines to fill the terminal
+		for b in range(i, hosts_height):
+				hosts_win.addstr(b,0,"│ │                                          "
+					"                      │                │")
+				hosts_win.clrtoeol()
 		(total_str,avg_str) = get_totals_avgs()
 		footer_win.addstr(0,0, "├─┼───────────────────────────────────────────"
 			"─────────────────────┼────────────────┤")
