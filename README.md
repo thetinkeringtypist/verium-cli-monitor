@@ -15,6 +15,8 @@ should work with the following CPU miners:
  * [effectsToCause's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
 
+NOTE: Not all miners report accurate information about the miners. This is not
+the fault of the monitor.
 
 
 1) Make sure each `cpuminer` is configured with the correct `api-bind` address:
@@ -37,9 +39,9 @@ ports = [4048, 4049]   #! NOTE: Change port numbers to those in use by your mine
 sudo apt-get install python3
 ```
 
-5) Create a file called `.chosts` in your home directory. On each line, place
-the IP address of a worker on your network (hostnames can be used if you are
-using DNS or have them enumerated in `/etc/hosts`):
+5) The monitor creates a file called `.chosts` in your home directory. On each
+line of that file, place the IP address of a worker on your network (hostnames
+can be used if you are using DNS or have them enumerated in `/etc/hosts`):
 
 ```bash
 cat /home/<username>/.chosts
