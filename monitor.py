@@ -303,6 +303,7 @@ def run_display_user_input(display_width):
 		elif c == curses.KEY_RESIZE:
 			quitting = False
 			curses.update_lines_cols()
+			curses.doupdate()
 			break
 		else:
 			pass # Leave everything as is
