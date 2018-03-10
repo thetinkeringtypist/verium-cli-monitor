@@ -223,13 +223,13 @@ def get_totals_avgs():
 	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,i in online_hosts) / length
 
 	# Formulate Average String
-	avg_str = ("Average {0:>18.3f} H/m   {1:>6.2f}%   {2:>6}    {3:<8f}  "
+	avg_str = ("Average {0:>19.3f} H/m   {1:>6.2f}%   {2:>6}    {3:<8f}  "
 		"│ {4:>4.2f}   {5:>5.1f}°C".format(
 		avg_hashrate,avg_share_percent,avg_solved_blocks,
 		avg_difficulty,avg_cpus,avg_cpu_temp))
 	
 	# Formulate Average String
-	total_str = ("Total   {0:>18.3f} H/m   ---.--%   {1:>6}    -.------  "
+	total_str = ("Total   {0:>19.3f} H/m   ---.--%   {1:>6}    -.------  "
 		"│ {2:>4}   ---.-°C".format(
 		total_hashrate,total_solved_blocks,total_cpus))
 
@@ -256,13 +256,13 @@ def run_display_user_input(display_width):
 	resized = False
 
 	# Print header information
-	header_win.addstr(0,0,      "  ┌─────────────────┬──────────────┬─────"
+	header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬─────"
 		"────┬────────┬────────────┬──────┬─────────┐")
 	header_win.clrtoeol()
-	header_win.addstr(1,0,      "  │   Hostname/IP   │ Hashrate H/m │ Shar"
+	header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │ Shar"
 		"e % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
 	header_win.clrtoeol()
-	header_win.addstr(2,0,      "┌─┼─────────────────┴──────────────┴─────"
+	header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴─────"
 		"────┴────────┴────────────┼──────┴─────────┤")
 	header_win.clrtoeol()
 	try:
@@ -338,20 +338,20 @@ def write_to_scr(hl_host):
 		
 	# Print empty lines to fill the terminal
 	for b in range(i, hosts_height):
-		hosts_win.addstr(b,0,"│ │                                          "
+		hosts_win.addstr(b,0,"│ │                                           "
 			"                      │                │")
 		hosts_win.clrtoeol()
 
 	# Calculate totals and averages
 	(total_str,avg_str) = get_totals_avgs()
-	footer_win.addstr(0,0, "├─┼───────────────────────────────────────────"
+	footer_win.addstr(0,0, "├─┼────────────────────────────────────────────"
 		"─────────────────────┼────────────────┤")
 	footer_win.clrtoeol()
 	footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
 	footer_win.clrtoeol()
 	footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
 	footer_win.clrtoeol()
-	footer_win.addstr(3,0, "└─┴───────────────────────────────────────────"
+	footer_win.addstr(3,0, "└─┴────────────────────────────────────────────"
 		"─────────────────────┴────────────────┘")
 	footer_win.clrtoeol()
 
@@ -370,7 +370,7 @@ def apply_formatting(line, statinfo, hl):
 		hosts_win.addstr(line, 0, hl_prefix)
 		# Three spaces between each. Space, bar, space between diff and cpus
 		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2]), curses.A_REVERSE) # HPM
+		hosts_win.addstr("{0:>9.3f} H/m".format(statinfo[2]), curses.A_REVERSE) # HPM
 		hosts_win.addstr("   ", curses.A_REVERSE)
 		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   # Share %
 		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
@@ -381,7 +381,7 @@ def apply_formatting(line, statinfo, hl):
 	elif statinfo[0] == True and hl == False:
 		hosts_win.addstr(line, 0, prefix)
 		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]))
-		hosts_win.addstr("{0:>8.3f} H/m".format(statinfo[2])) # HPM
+		hosts_win.addstr("{0:>9.3f} H/m".format(statinfo[2])) # HPM
 		hosts_win.addstr("   ")
 		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]))   # Share %
 		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
@@ -391,13 +391,13 @@ def apply_formatting(line, statinfo, hl):
 	# Host offline, highlighted
 	elif statinfo[0] == False and hl == True:
 		hosts_win.addstr(line, 0, hl_prefix)
-		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    "
+		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ------    "
 			"-.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
 	
 	# host offline, non-highlighted
 	else:
 		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}    ----.-- H/m   ---.--%   ------    "
+		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ------    "
 			"-.------  │ ----   ---.-°C ".format(statinfo[1]))
 
 	# End of Line
