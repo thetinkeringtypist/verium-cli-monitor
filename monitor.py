@@ -80,7 +80,8 @@ def init_display():
 # Define custom colors
 def init_colors():
 	for i in range(0, curses.COLORS):
-        	curses.init_pair(i + 1, i, -1)
+		curses.init_pair(i + 1, i, -1)
+	return
 
 
 # Interrupt signal handler
@@ -114,8 +115,14 @@ def process_worker_msg(hostname, thread_data):
 
 		# For each possible port in use
 		for port in ports:
+			# Treat connection timeouts differently
 			try:
 				thread_data.socket = pysocket.create_connection((host,port), timeout=5)
+			except:
+				set_host_offline(host)
+				continue
+
+			try:
 				socket = thread_data.socket
 
 				# Request miner information
@@ -124,17 +131,17 @@ def process_worker_msg(hostname, thread_data):
 
 				# Receive miner information
 				socket.settimeout(5000)
-				thread_data.msg = thread_data.socket.recv(4096).decode()
+				thread_data.msg = socket.recv(4096).decode()
 				miner_results.append(parse_summary_msg(host,thread_data.msg))
 			except timeout as e:
-				if thread_data.socket is not None:
-					socket.close()
 				set_host_offline(host)
 			except:
 				set_host_offline(host)
+			finally:
+				socket.shutdown(2)
+				socket.close()
 			
 		combine_results(host, miner_results)
-
 	return
 
 
