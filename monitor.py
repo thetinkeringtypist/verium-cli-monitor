@@ -138,9 +138,9 @@ def process_worker_msg(hostname, thread_data):
 			except:
 				set_host_offline(host)
 			finally:
-				socket.shutdown(2)
+				socket.shutdown(1)
 				socket.close()
-			
+
 		combine_results(host, miner_results)
 	return
 
