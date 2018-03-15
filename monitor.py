@@ -119,7 +119,6 @@ def process_worker_msg(hostname, thread_data):
 			try:
 				thread_data.socket = pysocket.create_connection((host,port), timeout=5)
 			except:
-				set_host_offline(host)
 				continue
 
 			try:
@@ -134,9 +133,9 @@ def process_worker_msg(hostname, thread_data):
 				thread_data.msg = socket.recv(4096).decode()
 				miner_results.append(parse_summary_msg(host,thread_data.msg))
 			except timeout as e:
-				set_host_offline(host)
+				pass
 			except:
-				set_host_offline(host)
+				pass
 			finally:
 				socket.shutdown(1)
 				socket.close()
