@@ -243,7 +243,7 @@ def get_totals_avgs():
 
 	# Formulate Average String
 	avg_str = ("Average {0:>19.3f} H/m   {1:>6.2f}%   {2:>6}    {3:<8f}  "
-		"│ {4:>4.2f}   {5:>5.1f}°C".format(
+		"│ {4:>4.1f}   {5:>5.1f}°C".format(
 		avg_hashrate,avg_share_percent,avg_solved_blocks,
 		avg_difficulty,avg_cpus,avg_cpu_temp))
 	
