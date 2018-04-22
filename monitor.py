@@ -20,7 +20,7 @@ from pathlib import Path
 from socket import *
 
 #! NOTE: Change to the ports your miners are using
-ports = [4048,4049]
+ports = [4048,4049,4050]
 hosts_file_str = "{0}/.chosts".format(Path.home())
 
 # Thread variables
@@ -40,7 +40,7 @@ host_count = 0
 # Initialize display variables
 def init_display():
 	global header_win, hosts_win, footer_win
-	term_width = 87 # Arbitrary number for how wide the display is
+	term_width = 102 # Arbitrary number for how wide the display is
 	term_height = curses.LINES
 
 	for host in hosts.keys():
@@ -137,7 +137,7 @@ def process_worker_msg(hostname, thread_data):
 			except:
 				pass
 			finally:
-				socket.shutdown(1)
+				socket.shutdown(0)
 				socket.close()
 
 		combine_results(host, miner_results)
@@ -179,7 +179,7 @@ def parse_summary_msg(host, msg):
 
 	# Build the display string entry
 	# (online, host, hpm, percent, blocks, difficulty, cpus, temp)
-	return (True, host, hpm, percent, solved, diff, cpus, cpu_temp)
+	return (True, host, hpm, percent, accpm, solved, diff, cpus, cpu_temp)
 
 
 # Combine results from each miner status
@@ -198,59 +198,59 @@ def combine_results(host, miner_results):
 	hpm = 0
 	solved = 0
 	percent = 0.0
+	accpm = 0.0
 	cpus = 0
 	diff = 0.0
 	cpu_temp = 0.0
 	for result in miner_results:
 		hpm += result[2]
 		percent += result[3]
-		solved += result[4]
-		cpus += result[6]
+		accpm += result[4]
+		solved += result[5]
+		cpus += result[7]
 
-		if result[5] > diff:
-			diff = result[5]
-		if result[7] > cpu_temp:
-			cpu_temp = result[7]
+		if result[6] > diff:
+			diff = result[6]
+		if result[8] > cpu_temp:
+			cpu_temp = result[8]
 
 	# Build the display string entry
 	percent /= count if count > 0 else 1  # Normalize percent
 	hosts[host] = (
-		miner_results[0][0], host, hpm, percent, solved, diff, cpus, cpu_temp)
+		miner_results[0][0], host, hpm, percent, accpm, solved, diff, cpus, cpu_temp)
 	return
 
 
 # Calc totals and averages
 def get_totals_avgs():
-	total_hashrate = 0.0
-	total_solved_blocks = 0
-	total_cpus = 0
 	online_hosts = list(filter(lambda statinfo: statinfo[0] == True, hosts.values()))
-	count = len(online_hosts)
-	length = count if count > 0 else 1
+	length = len(online_hosts) if len(online_hosts) > 0 else 1
 
 	# Calculate totals
-	total_hashrate      = sum(i for _,_,i,_,_,_,_,_ in online_hosts)
-	total_solved_blocks = sum(i for _,_,_,_,i,_,_,_ in online_hosts)
-	total_cpus          = sum(i for _,_,_,_,_,_,i,_ in online_hosts)
+	total_hashrate      = sum(i for _,_,i,_,_,_,_,_,_ in online_hosts)
+	total_acceptrate    = sum(i for _,_,_,_,i,_,_,_,_ in online_hosts)
+	total_solved_blocks = sum(i for _,_,_,_,_,i,_,_,_ in online_hosts)
+	total_cpus          = sum(i for _,_,_,_,_,_,_,i,_ in online_hosts)
 
 	# Calculate averages
-	avg_hashrate = total_hashrate / length
-	avg_share_percent   = sum(i for _,_,_,i,_,_,_,_ in online_hosts) / length
+	avg_hashrate        = total_hashrate / length
+	avg_share_percent   = sum(i for _,_,_,i,_,_,_,_,_ in online_hosts) / length
+	avg_acceptrate      = total_acceptrate / length
 	avg_solved_blocks   = total_solved_blocks / length
-	avg_difficulty      = sum(i for _,_,_,_,_,i,_,_ in online_hosts) / length
+	avg_difficulty      = sum(i for _,_,_,_,_,_,i,_,_ in online_hosts) / length
 	avg_cpus            = total_cpus / length
-	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,i in online_hosts) / length
+	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,_,i in online_hosts) / length
 
 	# Formulate Average String
-	avg_str = ("Average {0:>19.3f} H/m   {1:>6.2f}%   {2:>6}    {3:<8f}  "
-		"│ {4:>4.1f}   {5:>5.1f}°C".format(
-		avg_hashrate,avg_share_percent,avg_solved_blocks,
+	avg_str = ("Average {0:>19.3f} H/m   {1:>6.2f}%   {2:>8.3f} S/m   {3:>6}    "
+		"{4:<8f}  │ {5:>4.1f}   {6:>5.1f}°C".format(
+		avg_hashrate,avg_share_percent,avg_acceptrate,avg_solved_blocks,
 		avg_difficulty,avg_cpus,avg_cpu_temp))
 	
 	# Formulate Average String
-	total_str = ("Total   {0:>19.3f} H/m   ---.--%   {1:>6}    -.------  "
-		"│ {2:>4}   ---.-°C".format(
-		total_hashrate,total_solved_blocks,total_cpus))
+	total_str = ("Total   {0:>19.3f} H/m   ---.--%   {1:>8.3f} S/m   {2:>6}    "
+		"-.------  │ {3:>4}   ---.-°C".format(
+		total_hashrate,total_acceptrate,total_solved_blocks,total_cpus))
 
 	return (total_str, avg_str)
 	
@@ -273,13 +273,13 @@ def run_display_user_input(display_width, hl_host):
 	# Print header information
 	try:
 		header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬─────"
-			"────┬────────┬────────────┬──────┬─────────┐")
+			"────┬──────────────┬────────┬────────────┬──────┬─────────┐")
 		header_win.clrtoeol()
 		header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │ Shar"
-			"e % │ Blocks │ Difficulty │ CPUs │ Temp °C │")
+			"e % │ Accepted S/m │ Blocks │ Difficulty │ CPUs │ Temp °C │")
 		header_win.clrtoeol()
 		header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴─────"
-			"────┴────────┴────────────┼──────┴─────────┤")
+			"────┴──────────────┴────────┴────────────┼──────┴─────────┤")
 		header_win.clrtoeol()
 		header_win.noutrefresh(0,0, 0,0, header_stop,display_width)
 	except curses.error as e:
@@ -353,21 +353,21 @@ def write_to_scr(hl_host):
 		
 	# Print empty lines to fill the terminal
 	for b in range(i, hosts_height):
-		hosts_win.addstr(b,0,"│ │                                           "
-			"                      │                │")
+		hosts_win.addstr(b,0,"│ │                                              "
+			"                                  │                │")
 		hosts_win.clrtoeol()
 
 	# Calculate totals and averages
 	(total_str,avg_str) = get_totals_avgs()
-	footer_win.addstr(0,0, "├─┼────────────────────────────────────────────"
-		"─────────────────────┼────────────────┤")
+	footer_win.addstr(0,0, "├─┼───────────────────────────────────────────────"
+		"─────────────────────────────────┼────────────────┤")
 	footer_win.clrtoeol()
 	footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
 	footer_win.clrtoeol()
 	footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
 	footer_win.clrtoeol()
-	footer_win.addstr(3,0, "└─┴────────────────────────────────────────────"
-		"─────────────────────┴────────────────┘")
+	footer_win.addstr(3,0,"└─┴────────────────────────────────────────────────"
+		"────────────────────────────────┴────────────────┘")
 	footer_win.clrtoeol()
 
 	return
@@ -379,41 +379,44 @@ def apply_formatting(line, statinfo, hl):
 
 	hl_prefix = "│>│"
 	prefix =    "│ │"
+	hoststr =   ""
+	hashstr =   ""
+	sharestr =  ""
+	diffstr =   ""
+	tempstr =   ""
 
 	# Host online, highlighted
 	if statinfo[0] == True and hl == True:
 		hosts_win.addstr(line, 0, hl_prefix)
 		# Three spaces between each. Space, bar, space between diff and cpus
 		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>9.3f} H/m".format(statinfo[2]), curses.A_REVERSE) # HPM
-		hosts_win.addstr("   ", curses.A_REVERSE)
-		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]), curses.A_REVERSE)   # Share %
-		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
-			statinfo[4], statinfo[5], statinfo[6]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]), curses.A_REVERSE)  # CPU Temp
+		hosts_win.addstr("{0:>9.3f} H/m   ".format(statinfo[2]), curses.A_REVERSE) # HPM
+		hosts_win.addstr("{0:>6.2f}%   ".format(statinfo[3]), curses.A_REVERSE)   # Share %
+		hosts_win.addstr("{0:>8.3f} S/m   {1:>6}    {2:<8}  │ {3:>4}   ".format(
+			statinfo[4], statinfo[5], statinfo[6], statinfo[7]), curses.A_REVERSE)
+		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[8]), curses.A_REVERSE)  # CPU Temp
 
 	# Host online, not highlighted
 	elif statinfo[0] == True and hl == False:
 		hosts_win.addstr(line, 0, prefix)
 		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]))
-		hosts_win.addstr("{0:>9.3f} H/m".format(statinfo[2])) # HPM
-		hosts_win.addstr("   ")
-		hosts_win.addstr("{0:>6.2f}%".format(statinfo[3]))   # Share %
-		hosts_win.addstr("   {0:>6}    {1:<8}  │ {2:>4}   ".format(
-			statinfo[4], statinfo[5], statinfo[6]))
-		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[7]))  # CPU Temp
+		hosts_win.addstr("{0:>9.3f} H/m   ".format(statinfo[2])) # HPM
+		hosts_win.addstr("{0:>6.2f}%   ".format(statinfo[3]))   # Share %
+		hosts_win.addstr("{0:>8.3f} S/m   {1:>6}    {2:<8}  │ {3:>4}   ".format(
+			statinfo[4], statinfo[5], statinfo[6], statinfo[7]))
+		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[8]))  # CPU Temp
 	
 	# Host offline, highlighted
 	elif statinfo[0] == False and hl == True:
 		hosts_win.addstr(line, 0, hl_prefix)
-		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ------    "
-			"-.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
+		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ----.--- S/m   "
+			"------    -.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
 	
 	# host offline, non-highlighted
 	else:
 		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ------    "
-			"-.------  │ ----   ---.-°C ".format(statinfo[1]))
+		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ----.--- S/m   "
+			"------    -.------  │ ----   ---.-°C ".format(statinfo[1]))
 
 	# End of Line
 	hosts_win.addstr("│")
