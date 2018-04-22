@@ -137,7 +137,6 @@ def process_worker_msg(hostname, thread_data):
 			except:
 				pass
 			finally:
-				socket.shutdown(0)
 				socket.close()
 
 		combine_results(host, miner_results)
