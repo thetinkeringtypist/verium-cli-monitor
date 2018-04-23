@@ -20,7 +20,7 @@ from pathlib import Path
 from socket import *
 
 #! NOTE: Change to the ports your miners are using
-ports = [4048,4049,4050]
+ports = [4048,4049]
 hosts_file_str = "{0}/.chosts".format(Path.home())
 
 # Thread variables
