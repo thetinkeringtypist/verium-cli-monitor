@@ -13,8 +13,7 @@ should work with the following CPU miners:
  * [effectsToCause's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
 
-NOTE: Not all miners report accurate information about the miners. This is not
-the fault of the monitor.
+NOTE: Not all miners report accurate information about the miners.
 
 
 1) Make sure each `cpuminer` is configured with the correct `api-bind` address:
