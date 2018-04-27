@@ -1,8 +1,6 @@
 Verium CLI Monitoring
 =====================
-To have Verium Miners running is one thing, to be able to monitor them in
-real-time is another. This can be done through web-based monitors or via this
-CLI monitor.
+Monitor your Verium miners in real-time with this CLI monitor!
 
 
 ![alt text](https://github.com/bezeredi/verium-cli-monitor/blob/master/cli-monitor.png "CLI Monitor Preview")
