@@ -12,6 +12,7 @@
 # I have this script running on my LAN controller so that finding each machine
 #  on the LAN is not a problem
 import socket as pysocket
+import sys
 import time
 import signal
 import threading
@@ -19,16 +20,21 @@ import curses
 from pathlib import Path
 from socket import *
 
-#! NOTE: Change to the ports your miners are using
-ports = [4048,4049]
+ports = [4048,4049] #! NOTE: Change port numbers to those in use by your miners
+pool_mining = True  #! NOTE: Change to False if solo mining
+
+# Location of miner hosts file
 hosts_file_str = "{0}/.chosts".format(Path.home())
+
+# Socket connection timeout
+TIMEOUT = 5000   # 5000 miliseconds (5 seconds)
 
 # Thread variables
 threads = []
 kill_threads = threading.Event()
 
 # Display varaibles
-stdscr = curses.initscr()
+stdscr = None
 header_win = None
 hosts_win = None
 footer_win = None
@@ -39,7 +45,9 @@ host_count = 0
 
 # Initialize display variables
 def init_display():
-	global header_win, hosts_win, footer_win
+	global stdscr, header_win, hosts_win, footer_win
+
+	stdscr = curses.initscr()
 	term_width = 102 # Arbitrary number for how wide the display is
 	term_height = curses.LINES
 
@@ -103,6 +111,7 @@ def kill_program():
 
 # Process messages from a zmqsocket
 def process_worker_msg(hostname, thread_data):
+	global TIMEOUT
 	thread_data.miner_results = []
 	thread_data.host = hostname
 	thread_data.socket = None
@@ -125,11 +134,11 @@ def process_worker_msg(hostname, thread_data):
 				socket = thread_data.socket
 
 				# Request miner information
-				socket.settimeout(5000)
+				socket.settimeout(TIMEOUT)
 				socket.send("summary".encode())
 
 				# Receive miner information
-				socket.settimeout(5000)
+				socket.settimeout(TIMEOUT)
 				thread_data.msg = socket.recv(4096).decode()
 				miner_results.append(parse_summary_msg(host,thread_data.msg))
 			except timeout as e:
@@ -241,15 +250,26 @@ def get_totals_avgs():
 	avg_cpu_temp        = sum(i for _,_,_,_,_,_,_,_,i in online_hosts) / length
 
 	# Formulate Average String
-	avg_str = ("Average {0:>19.3f} H/m   {1:>6.2f}%   {2:>8.3f} S/m   {3:>6}    "
-		"{4:<8f}  │ {5:>4.1f}   {6:>5.1f}°C".format(
-		avg_hashrate,avg_share_percent,avg_acceptrate,avg_solved_blocks,
-		avg_difficulty,avg_cpus,avg_cpu_temp))
+	if pool_mining:
+		avg_str = ("Average {0:>19.3f} H/m   {1:>6.2f}%   {2:>8.3f} S/m    "
+			"{3:<8f}  │ {4:>4.1f}   {5:>5.1f}°C".format(avg_hashrate,
+			avg_share_percent,avg_acceptrate,avg_difficulty,avg_cpus,avg_cpu_temp))
+	else:
+		avg_str = ("Average {0:>19.3f} H/m   {1:>6}    "
+			"{2:<8f}  │ {3:>4.1f}   {4:>5.1f}°C".format(avg_hashrate,
+			avg_solved_blocks,avg_difficulty,avg_cpus,avg_cpu_temp))
+
 	
-	# Formulate Average String
-	total_str = ("Total   {0:>19.3f} H/m   ---.--%   {1:>8.3f} S/m   {2:>6}    "
-		"-.------  │ {3:>4}   ---.-°C".format(
-		total_hashrate,total_acceptrate,total_solved_blocks,total_cpus))
+	# Formulate Total String
+	if pool_mining:
+		total_str = ("Total   {0:>19.3f} H/m   ---.--%   {1:>8.3f} S/m    "
+			"-.------  │ {2:>4}   ---.-°C".format(
+			total_hashrate,total_acceptrate,total_cpus))
+	else:
+		total_str = ("Total   {0:>19.3f} H/m   {1:>6}    "
+			"-.------  │ {2:>4}   ---.-°C".format(total_hashrate,
+			total_solved_blocks,total_cpus))
+
 
 	return (total_str, avg_str)
 	
@@ -271,15 +291,7 @@ def run_display_user_input(display_width, hl_host):
 
 	# Print header information
 	try:
-		header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬─────"
-			"────┬──────────────┬────────┬────────────┬──────┬─────────┐")
-		header_win.clrtoeol()
-		header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │ Shar"
-			"e % │ Accepted S/m │ Blocks │ Difficulty │ CPUs │ Temp °C │")
-		header_win.clrtoeol()
-		header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴─────"
-			"────┴──────────────┴────────┴────────────┼──────┴─────────┤")
-		header_win.clrtoeol()
+		print_column_headers()
 		header_win.noutrefresh(0,0, 0,0, header_stop,display_width)
 	except curses.error as e:
 		pass
@@ -352,77 +364,169 @@ def write_to_scr(hl_host):
 		
 	# Print empty lines to fill the terminal
 	for b in range(i, hosts_height):
-		hosts_win.addstr(b,0,"│ │                                              "
-			"                                  │                │")
-		hosts_win.clrtoeol()
+		print_empty_entry(b)
 
 	# Calculate totals and averages
 	(total_str,avg_str) = get_totals_avgs()
-	footer_win.addstr(0,0, "├─┼───────────────────────────────────────────────"
-		"─────────────────────────────────┼────────────────┤")
-	footer_win.clrtoeol()
-	footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
-	footer_win.clrtoeol()
-	footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
-	footer_win.clrtoeol()
-	footer_win.addstr(3,0,"└─┴────────────────────────────────────────────────"
-		"────────────────────────────────┴────────────────┘")
-	footer_win.clrtoeol()
+	print_column_footers(avg_str,total_str)
+	return
 
+
+def print_empty_entry(line):
+	if pool_mining:
+		hosts_win.addstr(line,0,"│ │                                      "
+			"                                 │                │")
+	else:
+		hosts_win.addstr(line,0,"│ │                                      "
+			"                 │                │")
+	hosts_win.clrtoeol()
+	return
+
+
+# Write column headers to the screen
+def print_column_headers():
+	global header_win
+
+	if pool_mining:
+		header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬─────"
+			"────┬──────────────┬────────────┬──────┬─────────┐")
+		header_win.clrtoeol()
+		header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │ Shar"
+			"e % │ Accepted S/m │ Difficulty │ CPUs │ Temp °C │")
+		header_win.clrtoeol()
+		header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴─────"
+			"────┴──────────────┴────────────┼──────┴─────────┤")
+	else:
+		header_win.addstr(0,0,      "  ┌─────────────────┬───────────────┬"
+			"────────┬────────────┬──────┬─────────┐")
+		header_win.clrtoeol()
+		header_win.addstr(1,0,      "  │   Hostname/IP   │  Hashrate H/m │"
+			" Blocks │ Difficulty │ CPUs │ Temp °C │")
+		header_win.clrtoeol()
+		header_win.addstr(2,0,      "┌─┼─────────────────┴───────────────┴"
+			"────────┴────────────┼──────┴─────────┤")
+	header_win.clrtoeol()
+	return
+
+
+# Write column footers to the screen
+def print_column_footers(avg_str, total_str):
+	global footer_win
+	if pool_mining:
+		footer_win.addstr(0,0, "├─┼──────────────────────────────────────"
+			"─────────────────────────────────┼────────────────┤")
+		footer_win.clrtoeol()
+		footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
+		footer_win.clrtoeol()
+		footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
+		footer_win.clrtoeol()
+		footer_win.addstr(3,0,"└─┴───────────────────────────────────────"
+			"────────────────────────────────┴────────────────┘")
+	else:
+		footer_win.addstr(0,0, "├─┼────────────────────────────────"
+			"───────────────────────┼────────────────┤")
+		footer_win.clrtoeol()
+		footer_win.addstr(1,0, "│ │ {0} │".format(avg_str))
+		footer_win.clrtoeol()
+		footer_win.addstr(2,0, "│ │ {0} │".format(total_str))
+		footer_win.clrtoeol()
+		footer_win.addstr(3,0,"└─┴─────────────────────────────────"
+			"──────────────────────┴────────────────┘")
+	footer_win.clrtoeol()
 	return
 
 
 # Applies formatting and coloring for written lines
 def apply_formatting(line, statinfo, hl):
 	global hosts_win
+	prefix = "│>│" if hl == True else "│ │"
 
-	hl_prefix = "│>│"
-	prefix =    "│ │"
-	hoststr =   ""
-	hashstr =   ""
-	sharestr =  ""
-	diffstr =   ""
-	tempstr =   ""
-
-	# Host online, highlighted
-	if statinfo[0] == True and hl == True:
-		hosts_win.addstr(line, 0, hl_prefix)
-		# Three spaces between each. Space, bar, space between diff and cpus
-		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>9.3f} H/m   ".format(statinfo[2]), curses.A_REVERSE) # HPM
-		hosts_win.addstr("{0:>6.2f}%   ".format(statinfo[3]), curses.A_REVERSE)   # Share %
-		hosts_win.addstr("{0:>8.3f} S/m   {1:>6}    {2:<8}  │ {3:>4}   ".format(
-			statinfo[4], statinfo[5], statinfo[6], statinfo[7]), curses.A_REVERSE)
-		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[8]), curses.A_REVERSE)  # CPU Temp
-
-	# Host online, not highlighted
-	elif statinfo[0] == True and hl == False:
-		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}   ".format(statinfo[1]))
-		hosts_win.addstr("{0:>9.3f} H/m   ".format(statinfo[2])) # HPM
-		hosts_win.addstr("{0:>6.2f}%   ".format(statinfo[3]))   # Share %
-		hosts_win.addstr("{0:>8.3f} S/m   {1:>6}    {2:<8}  │ {3:>4}   ".format(
-			statinfo[4], statinfo[5], statinfo[6], statinfo[7]))
-		hosts_win.addstr("{0:>5.1f}°C ".format(statinfo[8]))  # CPU Temp
-	
-	# Host offline, highlighted
-	elif statinfo[0] == False and hl == True:
-		hosts_win.addstr(line, 0, hl_prefix)
-		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ----.--- S/m   "
-			"------    -.------  │ ----   ---.-°C ".format(statinfo[1]), curses.A_REVERSE)
-	
-	# host offline, non-highlighted
+	# Online vs. Offline
+	if statinfo[0] == True:
+		hoststr =  "{0:<15}".format(statinfo[1])
+		hashstr =  "{0:>9.3f} H/m".format(statinfo[2])
+		sharestr = "{0:>6.2f}%   {1:8.3f} S/m".format(statinfo[3], statinfo[4])
+		blockstr = "{0:>6}".format(statinfo[5])
+		diffstr =  "{0:<8}".format(statinfo[6])
+		cpustr =   "{0:>4}   {1:>5.1f}°C".format(statinfo[7], statinfo[8])
 	else:
-		hosts_win.addstr(line, 0, prefix)
-		hosts_win.addstr(" {0:<15}   -----.--- H/m   ---.--%   ----.--- S/m   "
-			"------    -.------  │ ----   ---.-°C ".format(statinfo[1]))
+		hoststr =  "{0:<15}".format(statinfo[1])
+		hashstr =  "-----.--- H/m"
+		sharestr = "---.--%   ----.--- S/m"
+		blockstr = "------"
+		diffstr =  "-.------"
+		cpustr =   "----   ---.-°C"
 
-	# End of Line
-	hosts_win.addstr("│")
+	hosts_win.addstr(line, 0, prefix)
+
+	# Turn on highlighting
+	if hl:
+		hosts_win.attron(curses.A_REVERSE)
+
+	# Print share information if pool mining, block info otherwise
+	if pool_mining:
+		hosts_win.addstr(" {0}   {1}   {2}    {3}  │ {4} ".format(
+			hoststr, hashstr, sharestr, diffstr, cpustr))
+	else:
+		hosts_win.addstr(" {0}   {1}   {2}    {3}  │ {4} ".format(
+			hoststr, hashstr, blockstr, diffstr, cpustr))
+
+	# Turn off highlighting
+	hosts_win.attroff(curses.A_REVERSE)
+
+	hosts_win.addch("│")
 	hosts_win.clrtoeol()
-
 	return
 
+
+# Parse command line options
+def parse_options():
+	global pool_mining
+	# Check commandline arguments
+	if len(sys.argv) > 1:
+		if sys.argv[1] == "--pool" or sys.argv[1] == "-p":
+			pool_mining = True
+		elif sys.argv[1] == "--solo" or sys.argv[1] == "-s":
+			pool_mining = False
+		elif sys.argv[1] == "--help" or sys.argv[1] == "-h":
+			print("Usage: {0} [OPTIONS]".format(sys.argv[0]))
+			print("Display information about your verium miners.")
+			print("")
+			print("Available options:")
+			print("  -p, --pool     Display information as if you were pool mining (default)")
+			print("  -s, --solo     Display information as if you were solo mining")
+			print("  -h, --help     Print this help and exit")
+			print("")
+			print("Available controls:")
+			print("  Arrow Up       Move up your list of miners")
+			print("  Arrow Down     Move down your list of miners")
+			print("  Home Key       Go to the first miner in the list of miners")
+			print("  End Key        Go to the last miner in the list of miners")
+			print("  q, ESC         Quit")
+			print("  Ctrl-C         Quit")
+			print("")
+			print("Relevant files:")
+			print("  $HOME/.chosts  The file that contains the list of your miners.")
+			print("                 Supports hostname or IP address. One per line.")
+			print("                 Example:")
+			print("                   192.168.1.2")
+			print("                   miner3")
+			print("  /etc/hosts     The system file that contains a list of known")
+			print("                 hosts. Add your miner IP address AND hostname")
+			print("                 to this file if you are not using DNS. One per line.")
+			print("                 Example:")
+			print("                   192.168.1.2  miner2")
+			print("                   192.168.1.3  miner3")
+			print("Other notes:")
+			print("  If a host is offline when you exit out of this monitor, it")
+			print("  may take a few seconds to return to a command line. The")
+			print("  socket is trying to connect to that offline host and needs")
+			print("  to timeout before that thread will terminate.")
+			exit()
+		else:
+			pass
+	return
+	
 
 # Main function
 def main(stdscr):
@@ -465,5 +569,6 @@ def main(stdscr):
 
 # Run the program
 if __name__ == "__main__":
+	parse_options()
 	curses.wrapper(main)
 	kill_program()

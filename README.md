@@ -27,11 +27,12 @@ cpuminer [options] --api-bind "0.0.0.0:<port-number>"
 2) Copy `monitor.py` to a computer on your network that can reach all of your
 miners. For me, this was my LAN controller.
 
-3) Change the line in `monitor.py` to include any port in use by a miner on
-your network:
+3) Change the lines in `monitor.py` to include any port in use by a miner on
+your network and if you are pool mining or solo mining:
 ```python
 #! monitor.py
 ports = [4048, 4049]   #! NOTE: Change port numbers to those in use by your miners
+pool_mining = True     #! NOTE: Change to False if solo mining
 ```
 
 4) Install `python3`:
@@ -61,6 +62,11 @@ mining machines
  * Arrow Up, Arrow Down - Up and down
  * Home, End - First worker, last worker
  * q, ESC - Quit
+
+### Monitor Options
+ * -p, --pool     Display information as if you were pool mining (default)
+ * -s, --solo     Display information as if you were solo mining
+ * -h, --help     Print the help and exit
 
 
 ### Example Network Diagram
