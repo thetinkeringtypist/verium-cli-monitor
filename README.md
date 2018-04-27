@@ -62,9 +62,9 @@ mining machines
  * q, ESC - Quit
 
 ### Monitor Options
- * -p, --pool     Display information as if you were pool mining (default)
- * -s, --solo     Display information as if you were solo mining
- * -h, --help     Print the help and exit
+ * `-p`, `--pool`     Display information as if you were pool mining (default)
+ * `-s`, `--solo`     Display information as if you were solo mining
+ * `-h`, `--help`     Print the help and exit
 
 
 ### Example Network Diagram
