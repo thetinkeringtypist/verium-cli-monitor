@@ -1,21 +1,22 @@
 Verium CLI Monitoring
 =====================
-Monitor your Verium miners in real-time with this CLI monitor!
+Monitor your Verium miners in real-time with this CLI monitor! Great for a small to moderate number of miners, like SBC setups!
 
 
-![alt text](https://github.com/bezeredi/verium-cli-monitor/blob/master/cli-monitor.png "CLI Monitor Preview")
+![Preview of the CLI Monitor with Pool Mining Enabled](https://github.com/bezeredi/verium-cli-monitor/blob/master/cli-monitor.png "CLI Monitor Preview")
 
 
-### How To Install & Use
+#### Supported `cpuminers`
 This monitor currently supports `cpuminer` API version 1.1. This means that it
 should work with the following CPU miners:
  * [Fireworm71's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [effectsToCause's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
 
-NOTE: Not all miners report accurate information about the miners.
+**Be aware**, not all cpuminer implementations report accurate information about themselves.
 
 
+#### Configure, Install, and Run
 1) Make sure each `cpuminer` is configured with the correct `api-bind` address:
 ```bash
 cpuminer [options] --api-bind "0.0.0.0:<port-number>"
@@ -55,22 +56,22 @@ cat /etc/hosts
 mining machines
 
 
-### Monitor Controls
+#### Monitor Controls
  * Arrow Up, Arrow Down - Up and down
  * Home, End - First worker, last worker
  * q, ESC - Quit
 
-### Monitor Options
+#### Monitor Options
  * `-p`, `--pool`     Display information as if you were pool mining (default)
  * `-s`, `--solo`     Display information as if you were solo mining
  * `-h`, `--help`     Print the help and exit
 
 
-### Example Network Diagram
+#### Example Network Diagram
 An example network diagram can be found [here](https://github.com/bezeredi/verium-cli-monitor/blob/master/example-diagram.txt).
 
 
-### License & Donations
+#### License & Donations
 Credit to [rbthomp](https://github.com/rbthomp) for demonstrating that ZMQ is
 not necessary for this tool.
 
