@@ -56,16 +56,16 @@ def init_display():
 		# other than these if the host is offline
 		hosts[host] = (False, host)
 
-	# Header window (index 0)
+	# Header window
 	header_win = curses.newpad(3, term_width)
 
-	# Hosts window (pad) (index 1)
+	# Hosts window
 	if host_count < (term_height - 7): # Header and footer
 		hosts_win = curses.newpad(term_height - 7, term_width)
 	else:
 		hosts_win = curses.newpad(host_count, term_width)
 		
-	# Footer window (index 2)
+	# Footer window
 	footer_win = curses.newpad(4, term_width)
 
 	if curses.has_colors():
@@ -358,7 +358,7 @@ def write_to_scr(hl_host):
 	i = 0
 	for host in hosts_display:
 		# Highlight host
-		hl = (True if i == hl_host else False)
+		hl = (i == hl_host)
 		apply_formatting(i, hosts[host], hl)
 		i += 1
 		
@@ -439,10 +439,10 @@ def print_column_footers(avg_str, total_str):
 # Applies formatting and coloring for written lines
 def apply_formatting(line, statinfo, hl):
 	global hosts_win
-	prefix = "│>│" if hl == True else "│ │"
+	prefix = "│>│" if hl else "│ │"
 
 	# Online vs. Offline
-	if statinfo[0] == True:
+	if statinfo[0]:
 		hoststr =  "{0:<15}".format(statinfo[1])
 		hashstr =  "{0:>9.3f} H/m".format(statinfo[2])
 		sharestr = "{0:>6.2f}%   {1:8.3f} S/m".format(statinfo[3], statinfo[4])
