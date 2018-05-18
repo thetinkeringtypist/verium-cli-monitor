@@ -7,8 +7,9 @@ Monitor your Verium miners in real-time with this CLI monitor! Great for a small
 
 
 #### Supported `cpuminers`
-This monitor currently supports `cpuminer` API version 1.1. This means that it
-should work with the following CPU miners:
+This monitor was developed to monitor Verium miners, but also works for other
+cryptocurrency miners so long as the `cpuminer` instance is running API version
+1.1. The following CPU miners are known to support this API version:
  * [Fireworm71's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [effectsToCause's veriumMiner](https://github.com/fireworm71/veriumMiner)
  * [tpruvot's cpuminer-multi](https://github.com/tpruvot/cpuminer-multi)
