@@ -338,13 +338,9 @@ def run_display_user_input(display_width, hl_host):
 		except curses.error as e:
 			pass
 
-		# Negligable refresh lag while
-		# keeping CPU usage down
-		# (for arrowing up and down)
-		# I want to use a keyboard event
-		# listener, but I can't find an
-		# implementation that works over
-		# ssh
+		# Negligable refresh lag while keeping CPU usage down (for arrowing up
+		# and down). I want to use a keyboard event listener, but I haven't found
+		# an implementation that works over ssh without the use of X11.
 		time.sleep(0.03)
 
 	return (quitting, hl_host)
@@ -355,12 +351,10 @@ def write_to_scr(hl_host):
 	global hosts_win, footer_win
 	(hosts_height, _) = hosts_win.getmaxyx()
 	
-	i = 0
-	for host in hosts_display:
+	for i, host in enumerate(hosts_display):
 		# Highlight host
 		hl = (i == hl_host)
 		apply_formatting(i, hosts[host], hl)
-		i += 1
 		
 	# Print empty lines to fill the terminal
 	for b in range(i, hosts_height):
