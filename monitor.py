@@ -351,10 +351,12 @@ def write_to_scr(hl_host):
 	global hosts_win, footer_win
 	(hosts_height, _) = hosts_win.getmaxyx()
 	
-	for i, host in enumerate(hosts_display):
+	i = 0
+	for host in hosts_display:
 		# Highlight host
 		hl = (i == hl_host)
 		apply_formatting(i, hosts[host], hl)
+		i += 1
 		
 	# Print empty lines to fill the terminal
 	for b in range(i, hosts_height):
